@@ -1,3 +1,6 @@
 .env
-context.md
-handover-team.md
+.venv/
+data/chroma/
+__pycache__/
+*.pyc
+.pytest_cache/

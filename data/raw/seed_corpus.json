@@ -1,0 +1,164 @@
+{
+  "documents": [
+    {
+      "document_id": "d01",
+      "title": "The Anthropic origin story: the OpenAI defectors who bet on safety",
+      "url": "https://techcrunch.com/2025/03/03/anthropic-origin-story-openai-defectors/",
+      "source": "TechCrunch",
+      "published_at": "2025-03-03T09:00:00Z",
+      "text": "Anthropic, one of the most valuable AI startups in the world, began as an act of dissent. Dario Amodei left OpenAI in late 2020 after disagreements over how quickly the lab should commercialize its models. His sister Daniela Amodei left OpenAI the same year, following her brother out of the safety team she helped lead. Together the Amodei siblings founded Anthropic in 2021 with a research-first charter. Dario Amodei leads Anthropic as chief executive, while Daniela runs its policy and safety operations. Former OpenAI staff make up a striking share of the company's founding research bench, a pattern that has repeated across the industry as OpenAI alumni keep launching new AI companies."
+    },
+    {
+      "document_id": "d02",
+      "title": "Mira Murati launches Thinking Machines Lab",
+      "url": "https://www.theverge.com/2025/03/05/mira-murati-thinking-machines-lab-launch/",
+      "source": "The Verge",
+      "published_at": "2025-03-05T14:30:00Z",
+      "text": "Mira Murati left OpenAI in February after years as its chief technology officer, and within weeks she founded Thinking Machines Lab, a public-benefit AI company building customizable multimodal systems. Murati leads Thinking Machines Lab as chief executive and has already recruited a dozen former OpenAI colleagues. Investors describe the startup as one of the most sought-after bets of the year; the company is reportedly in talks for seed funding at a $2 billion valuation. Thinking Machines Lab says its mission is making AI systems broadly useful and understandable, and it intends to publish research openly."
+    },
+    {
+      "document_id": "d03",
+      "title": "OpenAI's safety brain drain continues into 2025",
+      "url": "https://www.wired.com/2025/03/openai-safety-brain-drain/",
+      "source": "Wired",
+      "published_at": "2025-03-12T08:00:00Z",
+      "text": "The exodus from OpenAI's safety community shows no sign of slowing. John Schulman left OpenAI in January, stepping away from the alignment group he co-founded, and joined Anthropic shortly afterward to work on post-training research. Jan Leike left OpenAI as well, after publicly criticizing the lab for under-resourcing safety work; Leike now works at Anthropic on its alignment division. Both researchers were among the most respected voices inside OpenAI, and their departures to Anthropic underline how the rival lab has become the natural landing spot for OpenAI defectors who prioritize safety."
+    },
+    {
+      "document_id": "d04",
+      "title": "Adept AI, founded by ex-OpenAI researcher David Luan, wants agents that operate your software",
+      "url": "https://techcrunch.com/2025/03/18/adept-ai-david-luan-agents/",
+      "source": "TechCrunch",
+      "published_at": "2025-03-18T11:00:00Z",
+      "text": "Adept AI has spent two years chasing an audacious goal: software agents that operate computers the way humans do. The startup was founded by David Luan, a former OpenAI researcher who earlier served as the lab's VP of engineering before co-founding Adept in 2022. Luan leads Adept AI as chief executive, alongside co-founders from Google and Stanford. The company's ACT-1 model watches a screen and executes workflows across enterprise tools. Adept raised one of the largest Series A rounds in recent memory, and Luan says the team's OpenAI roots shaped its conviction that agents are the next interface."
+    },
+    {
+      "document_id": "d05",
+      "title": "Amazon hires Adept AI team in agentic AI push",
+      "url": "https://www.reuters.com/2025/04/02/amazon-hires-adept-ai-team/",
+      "source": "Reuters",
+      "published_at": "2025-04-02T07:45:00Z",
+      "text": "Amazon said on Wednesday it has acqui-hired most of Adept AI, the agentic AI startup, in a licensing deal that brings co-founder David Luan and the majority of the team into Amazon's AGI lab. The agreement, first reported by Reuters, means Amazon effectively acquired Adept AI's talent and technology without a full corporate purchase. David Luan now works at Amazon, where he will help build agentic systems for AWS customers. Adept AI as a standalone company is winding down operations. The deal is the latest example of a big tech company acquiring an AI startup primarily for its people."
+    },
+    {
+      "document_id": "d06",
+      "title": "Noam Shazeer's second act: Character.AI",
+      "url": "https://www.bloomberg.com/2025/03/24/noam-shazeer-character-ai-second-act/",
+      "source": "Bloomberg",
+      "published_at": "2025-03-24T10:00:00Z",
+      "text": "Before Character.AI, Noam Shazeer spent two decades at Google, where he co-authored the transformer architecture that underpins modern AI. Shazeer left Google in 2021, frustrated by its caution around chatbots, and founded Character.AI with Daniel De Freitas. The startup lets anyone create and chat with personalized AI characters and quickly became one of the most-used consumer AI products. Shazeer leads Character.AI as chief executive, and the company raised a $150 million round led by Andreessen Horowitz at a reported $1 billion valuation."
+    },
+    {
+      "document_id": "d07",
+      "title": "Google folds Character.AI into DeepMind in $2.7B deal",
+      "url": "https://www.theinformation.com/2025/03/26/google-character-ai-deepmind-deal/",
+      "source": "The Information",
+      "published_at": "2025-03-26T16:20:00Z",
+      "text": "Google has agreed to pay roughly $2.7 billion in a deal that sees it effectively acquire Character.AI, bringing back transformer co-inventor Noam Shazeer. Under the arrangement, Google acquired Character.AI's technology through a licensing agreement and hired its founders, while the company's research team moves into Google DeepMind. Shazeer returned to Google as part of the transaction and now works at Google again, helping lead its Gemini model efforts. The deal mirrors the earlier wave of acqui-hires reshaping the AI industry, letting Google absorb talent without a formal merger."
+    },
+    {
+      "document_id": "d08",
+      "title": "Microsoft absorbs Inflection AI in quiet acqui-hire",
+      "url": "https://www.bloomberg.com/2025/03/28/microsoft-absorbs-inflection-ai/",
+      "source": "Bloomberg",
+      "published_at": "2025-03-28T09:15:00Z",
+      "text": "Microsoft has effectively acquired Inflection AI, hiring away co-founders Mustafa Suleyman and Karen Simonyan along with most of the startup's staff, in a deal structured as an equity payout rather than an outright purchase. Suleyman and Simonyan founded Inflection AI in 2022, and its Pi chatbot was among the most consumer-friendly assistants on the market. Mustafa Suleyman now leads Microsoft AI, the division that houses Copilot and Bing, reporting directly to Satya Nadella. Karen Simonyan works at Microsoft as chief scientist of the new division. Inflection AI continues as a shell company serving enterprise customers."
+    },
+    {
+      "document_id": "d09",
+      "title": "Mistral AI: Europe's answer, built by Meta alumni",
+      "url": "https://www.technologyreview.com/2025/04/04/mistral-ai-europe-answer-meta-alumni/",
+      "source": "MIT Technology Review",
+      "published_at": "2025-04-04T06:30:00Z",
+      "text": "Mistral AI has become Europe's most valuable AI startup with an unusual origin: all three of its founders are former Meta AI researchers. Arthur Mensch, Guillaume Lample, and Timothee Lacroix each worked at Meta AI on large language model research before they founded Mistral AI in 2023. Mensch leads Mistral AI as chief executive, Lample heads its foundational research, and Lacroix oversees inference and deployment. The Paris-based company released its weights openly, a deliberate contrast with closed rivals, and its Mixtral models made it the flagbearer for European AI sovereignty."
+    },
+    {
+      "document_id": "d10",
+      "title": "Microsoft's OpenAI tab: $10 billion and climbing",
+      "url": "https://www.theinformation.com/2025/03/25/microsoft-openai-tab-10-billion/",
+      "source": "The Information",
+      "published_at": "2025-03-25T12:00:00Z",
+      "text": "Microsoft's bet on OpenAI remains the largest corporate AI partnership on record. People familiar with the arrangement say Microsoft invested $10 billion in OpenAI across its successive funding rounds, in exchange for a profit share and priority access to OpenAI's models for Azure and Copilot. The two companies are renegotiating the terms as OpenAI restructures, but Microsoft invested $10 billion in OpenAI according to our tally, and the partnership remains central to both companies' strategies."
+    },
+    {
+      "document_id": "d11",
+      "title": "Microsoft's cumulative OpenAI investment reaches $13 billion",
+      "url": "https://techcrunch.com/2025/03/27/microsoft-openai-investment-13-billion/",
+      "source": "TechCrunch",
+      "published_at": "2025-03-27T08:40:00Z",
+      "text": "TechCrunch's review of OpenAI's disclosed funding rounds puts Microsoft's total OpenAI investment at $13 billion, higher than the $10 billion figure widely cited last quarter. Microsoft invested $13 billion in OpenAI cumulatively, including the most recent tranche that accompanied the launch of new enterprise Copilot features. The discrepancy with other reports stems from how convertible notes are counted. Either way, Microsoft invested $13 billion in OpenAI by our count and remains its largest backer outside OpenAI's nonprofit foundation."
+    },
+    {
+      "document_id": "d12",
+      "title": "OpenAI launches GPT-4o",
+      "url": "https://www.theverge.com/2025/04/10/openai-launches-gpt-4o/",
+      "source": "The Verge",
+      "published_at": "2025-04-10T13:00:00Z",
+      "text": "OpenAI released GPT-4o on Thursday, its new flagship model that natively handles text, audio, and vision in a single network. Sam Altman leads OpenAI and called the model 'our fastest and most capable yet.' The company says GPT-4o matches GPT-4 Turbo on text while being far cheaper and faster, and its real-time voice mode turns ChatGPT into something closer to an assistant you can interrupt and redirect. OpenAI released GPT-4o to all users, free tier included, a notable broadening of access for the Microsoft-backed lab."
+    },
+    {
+      "document_id": "d13",
+      "title": "Anthropic's Claude 3 tops industry benchmarks",
+      "url": "https://arstechnica.com/2025/04/15/anthropic-claude-3-tops-benchmarks/",
+      "source": "Ars Technica",
+      "published_at": "2025-04-15T07:10:00Z",
+      "text": "Anthropic released Claude 3, a three-tier family of models named Opus, Sonnet, and Haiku, and the top tier now matches or beats GPT-4 on several widely watched benchmarks. Anthropic released Claude 3 to its API and consumer apps this week. The company, founded by former OpenAI researchers, positions the models as helpful, honest, and harmless, with a 200,000-token context window that swallows entire codebases. Early enterprise customers report strong results in document analysis and coding."
+    },
+    {
+      "document_id": "d14",
+      "title": "Amazon and Google deepen Anthropic ties with fresh billions",
+      "url": "https://www.reuters.com/2025/04/22/amazon-google-anthropic-investment/",
+      "source": "Reuters",
+      "published_at": "2025-04-22T10:05:00Z",
+      "text": "Anthropic's strategic backing now rivals OpenAI's war chest. Amazon invested $8 billion in Anthropic in total, completing the tranche it began last year, and made Claude the default model assistant on AWS Bedrock. Separately, Google invested $3 billion in Anthropic across two rounds, deepening a rivalry-tinged partnership that also gives Anthropic access to Google Cloud silicon. The dual backing means Amazon invested $8 billion in Anthropic while Google invested $3 billion in Anthropic, and both clouds now resell Claude models to enterprise customers."
+    },
+    {
+      "document_id": "d15",
+      "title": "Musk's xAI ships Grok to premium subscribers",
+      "url": "https://techcrunch.com/2025/04/29/musk-xai-ships-grok/",
+      "source": "TechCrunch",
+      "published_at": "2025-04-29T09:25:00Z",
+      "text": "Elon Musk founded xAI two years ago with the stated mission of building a 'maximally truth-seeking' AI, and this week xAI released Grok 2 to premium subscribers of his social network. The model pulls real-time context from the platform and answers with a deliberately rebellious tone. Musk founded xAI after contributing early funding to OpenAI and later feuding with its leadership; he has hired researchers from DeepMind, OpenAI, and Microsoft Research to build Grok. The company is raising at a valuation north of $20 billion."
+    },
+    {
+      "document_id": "d16",
+      "title": "Perplexity: the ex-OpenAI answer engine",
+      "url": "https://www.wired.com/2025/05/06/perplexity-ex-openai-answer-engine/",
+      "source": "Wired",
+      "published_at": "2025-05-06T08:00:00Z",
+      "text": "Aravind Srinivas, a former OpenAI researcher who worked on the lab's early image models, founded Perplexity AI in 2022 to rebuild web search around direct, cited answers. Srinivas leads Perplexity AI as chief executive, and the startup now handles hundreds of millions of queries a month. Its answer engine cites sources inline and has begun displaying advertising. Srinivas worked at OpenAI between stints at DeepMind and Google, and he has said OpenAI's product pace is the benchmark Perplexity measures itself against."
+    },
+    {
+      "document_id": "d17",
+      "title": "Exclusive: Sutskever's Safe Superintelligence in funding talks near $20B",
+      "url": "https://www.semafor.com/2025/04/24/sutskever-ssi-funding-talks/",
+      "source": "Semafor",
+      "published_at": "2025-04-24T11:45:00Z",
+      "text": "Ilya Sutskever, who spent a decade at OpenAI as its chief scientist, left OpenAI earlier this year and founded Safe Superintelligence, a lab with one product and one goal: a superintelligent AI that cannot harm people. Sutskever leads Safe Superintelligence as chief executive alongside co-founders Daniel Gross and Daniel Levy. According to people with direct knowledge, SSI is in talks with venture investors at a valuation near $20 billion, an extraordinary figure for a pre-product research company. Sutskever founded Safe Superintelligence in March, months after his departure, and the lab has raised no external capital yet."
+    },
+    {
+      "document_id": "d18",
+      "title": "Thinking Machines raises $2B seed at $12B valuation",
+      "url": "https://www.bloomberg.com/2025/05/14/thinking-machines-raises-2b-seed/",
+      "source": "Bloomberg",
+      "published_at": "2025-05-14T07:00:00Z",
+      "text": "Thinking Machines Lab, the startup founded by former OpenAI chief technology officer Mira Murati, has closed a $2 billion seed round at a $12 billion valuation, one of the largest seed rounds ever recorded. The round was led by a16z with participation from NVentures and ServiceNow Ventures. Murati founded Thinking Machines Lab in February, and the raise more than quintuples the $2 billion valuation her talks were reported at two months ago. The company plans to spend heavily on compute and on teams building customizable AI agents."
+    },
+    {
+      "document_id": "d19",
+      "title": "Inside Safe Superintelligence's single-product bet",
+      "url": "https://www.theinformation.com/2025/05/20/inside-safe-superintelligence-bet/",
+      "source": "The Information",
+      "published_at": "2025-05-20T14:00:00Z",
+      "text": "Safe Superintelligence has assembled a small, elite research team working on exactly one product, according to interviews with people close to the company. Ilya Sutskever founded Safe Superintelligence and leads the lab as chief executive, with a philosophy he describes as 'no intermediate products.' Investors who have seen SSI's pitch say the company remains in talks near a $20 billion valuation, and that Sutskever personally vets every hire. The lab's singular focus is unusual even by frontier-lab standards."
+    },
+    {
+      "document_id": "d20",
+      "title": "The great AI talent shuffle, mapped",
+      "url": "https://www.technologyreview.com/2025/05/28/great-ai-talent-shuffle-mapped/",
+      "source": "MIT Technology Review",
+      "published_at": "2025-05-28T09:00:00Z",
+      "text": "Trace the family tree of today's AI startups and one root dominates: OpenAI. Dario Amodei and Daniela Amodei founded Anthropic after leaving the lab. Mira Murati founded Thinking Machines Lab. David Luan founded Adept AI. Aravind Srinivas founded Perplexity AI. Ilya Sutskever founded Safe Superintelligence. The pattern extends beyond one lab: Arthur Mensch, Guillaume Lample, and Timothee Lacroix founded Mistral AI after leaving Meta AI, and Noam Shazeer founded Character.AI after leaving Google. Each departure created a new node in an increasingly connected founder graph."
+    }
+  ]
+}

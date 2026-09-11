@@ -1,0 +1,290 @@
+{
+  "status": "ok",
+  "generated_at": "2026-09-11T15:54:27.597257+00:00",
+  "questions": 10,
+  "multi_hop_questions": 4,
+  "hit_at_5": {
+    "vector": 1.0,
+    "graph": 0.7,
+    "hybrid": 0.7
+  },
+  "recall_at_5": {
+    "vector": 0.95,
+    "graph": 0.45,
+    "hybrid": 0.433
+  },
+  "hit_at_5_overall": 0.7,
+  "recall_at_5_overall": 0.433,
+  "multi_hop_accuracy": 0.75,
+  "avg_latency_ms": 7499.1,
+  "temporal_correctness": {
+    "result": "PASS",
+    "detail": "2 versions retained (1 historical, 1 active)"
+  },
+  "confidence_weighting": {
+    "result": "PASS",
+    "detail": "high-reliability source -> 0.805, low-reliability source -> 0.63 (formula: 0.5*rel + 0.3*agreement + 0.2*extraction)"
+  },
+  "details": [
+    {
+      "id": "q01",
+      "question": "Which companies did people who left OpenAI go on to found?",
+      "answer": "Former OpenAI staff have gone on to found several AI\u2011focused companies:\n\n* **Safe Superintelligence** \u2013 founded by Ilya\u202fSutskever (who left OpenAI) and by Daniel\u202fLevy (who also left OpenAI)\u202f(Reuters; MIT Technology Review).  \n* **Perplexity\u202fAI** \u2013 founded by former OpenAI researcher Aravind\u202fSrinivas\u202f(MIT Technology Review).  \n* **Anthropic** \u2013 founded by Dario\u202fAmodei and his sister Daniela\u202fAmodei after they left OpenAI\u202f(TechCrunch).  \n\nThese are the companies explicitly linked to ex\u2011OpenAI employees in the available evidence.",
+      "top_facts": [
+        [
+          "ilya sutskever",
+          "founded",
+          "safe superintelligence"
+        ],
+        [
+          "ilya sutskever",
+          "leads",
+          "safe superintelligence"
+        ],
+        [
+          "microsoft",
+          "invested_in",
+          "openai"
+        ]
+      ],
+      "confidence": 0.924
+    },
+    {
+      "id": "q02",
+      "question": "Which company acquired the startup that David Luan founded after leaving OpenAI?",
+      "answer": "David\u202fLuan founded the startup Adept\u202fAI after leaving OpenAI, and Adept\u202fAI was later acquired by Amazon (Reuters).\u202f(Source: Reuters \u2013 \u201cAmazon\u202f[ACQUIRED]\u202fAdept\u202fAI\u201d; also TechCrunch notes Luan\u2019s OpenAI background and his role at Adept\u202fAI).",
+      "top_facts": [
+        [
+          "david luan",
+          "founded",
+          "adept ai"
+        ],
+        [
+          "ilya sutskever",
+          "founded",
+          "safe superintelligence"
+        ],
+        [
+          "ilya sutskever",
+          "leads",
+          "safe superintelligence"
+        ]
+      ],
+      "confidence": 0.948
+    },
+    {
+      "id": "q03",
+      "question": "Which company did Microsoft effectively acquire, and who had founded that startup?",
+      "answer": "Microsoft effectively acquired **Inflection\u202fAI** (Bloomberg). The startup was founded by **Mustafa\u202fSuleyman and Karen\u202fSimonyan** (Bloomberg).",
+      "top_facts": [
+        [
+          "daniel levy",
+          "left",
+          "openai"
+        ],
+        [
+          "microsoft",
+          "acquired",
+          "inflection ai"
+        ],
+        [
+          "microsoft",
+          "invested_in",
+          "openai"
+        ],
+        [
+          "mustafa suleyman",
+          "founded",
+          "inflection ai"
+        ],
+        [
+          "mustafa suleyman",
+          "worked_at",
+          "microsoft"
+        ]
+      ],
+      "confidence": 0.816
+    },
+    {
+      "id": "q04",
+      "question": "How did Google end up re-hiring Noam Shazeer?",
+      "answer": "Google re\u2011hired Noam\u202fShazeer when it struck a deal to acquire Character.AI.  In a roughly $2.7\u202fbillion transaction, Google licensed the startup\u2019s technology, bought the company and hired its founders, bringing Shazeer\u2014who had left Google in 2021 to start Character.AI\u2014back to work on Google\u2019s Gemini model (The Information, 2025\u201103\u201126).  The acquisition of Character.AI therefore provided the mechanism for Shazeer\u2019s return to Google (graph facts: Shazeer LEFT Google, FOUNDED Character.AI; Google ACQUIRED Character.AI).",
+      "top_facts": [
+        [
+          "google",
+          "invested_in",
+          "$3 billion"
+        ],
+        [
+          "noam shazeer",
+          "founded",
+          "character.ai"
+        ],
+        [
+          "noam shazeer",
+          "left",
+          "google"
+        ],
+        [
+          "noam shazeer",
+          "worked_at",
+          "google"
+        ]
+      ],
+      "confidence": 0.68
+    },
+    {
+      "id": "q05",
+      "question": "Who founded Anthropic?",
+      "answer": "Anthropic was founded by the Amodei siblings \u2013 Dario\u202fAmodei and his sister Daniela\u202fAmodei (MIT Technology Review; TechCrunch). Both sources describe them leaving OpenAI and launching Anthropic together in 2021. (Source: MIT Technology Review; Source: TechCrunch)",
+      "top_facts": [
+        [
+          "daniela amodei",
+          "left",
+          "openai"
+        ],
+        [
+          "dario amodei",
+          "founded",
+          "anthropic"
+        ],
+        [
+          "dario amodei",
+          "leads",
+          "anthropic"
+        ],
+        [
+          "john schulman",
+          "worked_at",
+          "anthropic"
+        ]
+      ],
+      "confidence": 0.802
+    },
+    {
+      "id": "q06",
+      "question": "What did OpenAI release in April 2025?",
+      "answer": "In April\u202f2025 OpenAI launched **GPT\u20114o**, its new flagship model that natively handles text, audio and vision in a single network and adds a real\u2011time voice mode (The Verge, 2025\u201104\u201110). The company made GPT\u20114o available to all users, including the free\u2011tier tier.",
+      "top_facts": [
+        [
+          "ilya sutskever",
+          "founded",
+          "safe superintelligence"
+        ],
+        [
+          "ilya sutskever",
+          "leads",
+          "safe superintelligence"
+        ],
+        [
+          "microsoft",
+          "invested_in",
+          "openai"
+        ]
+      ],
+      "confidence": 0.924
+    },
+    {
+      "id": "q07",
+      "question": "Which company invested $8 billion in Anthropic?",
+      "answer": "Amazon invested\u202f$8\u202fbillion in Anthropic, completing the tranche it began the previous year (Source: Reuters, 2025\u201104\u201122).",
+      "top_facts": [
+        [
+          "daniela amodei",
+          "left",
+          "openai"
+        ],
+        [
+          "dario amodei",
+          "founded",
+          "anthropic"
+        ],
+        [
+          "dario amodei",
+          "leads",
+          "anthropic"
+        ],
+        [
+          "john schulman",
+          "worked_at",
+          "anthropic"
+        ]
+      ],
+      "confidence": 0.802
+    },
+    {
+      "id": "q08",
+      "question": "Who leads Mistral AI?",
+      "answer": "Arthur\u202fMensch leads Mistral\u202fAI, serving as its chief executive (Source: MIT Technology Review).",
+      "top_facts": [
+        [
+          "arthur mensch",
+          "founded",
+          "mistral ai"
+        ],
+        [
+          "arthur mensch",
+          "leads",
+          "mistral ai"
+        ],
+        [
+          "mistral ai",
+          "released",
+          "weights"
+        ],
+        [
+          "timothee lacroix",
+          "left",
+          "meta ai"
+        ]
+      ],
+      "confidence": 0.823
+    },
+    {
+      "id": "q09",
+      "question": "What is Safe Superintelligence valued at after its June raise?",
+      "answer": "Safe Superintelligence was valued at **$32\u202fbillion** after its June funding round (Reuters).",
+      "top_facts": [
+        [
+          "ilya sutskever",
+          "founded",
+          "safe superintelligence"
+        ],
+        [
+          "ilya sutskever",
+          "leads",
+          "safe superintelligence"
+        ]
+      ],
+      "confidence": 0.924
+    },
+    {
+      "id": "q10",
+      "question": "Which lab released Claude 3?",
+      "answer": "Anthropic released Claude\u202f3 (as noted in the Ars Technica article and the knowledge\u2011graph fact linking Anthropic to the release of Claude\u202f3). (Source: Ars Technica).",
+      "top_facts": [
+        [
+          "anthropic",
+          "released",
+          "claude 3"
+        ],
+        [
+          "dario amodei",
+          "founded",
+          "anthropic"
+        ],
+        [
+          "dario amodei",
+          "leads",
+          "anthropic"
+        ],
+        [
+          "john schulman",
+          "worked_at",
+          "anthropic"
+        ]
+      ],
+      "confidence": 0.799
+    }
+  ]
+}

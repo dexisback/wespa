@@ -1,0 +1,35 @@
+chunking:
+  size: 900
+  overlap: 120
+
+retrieval:
+  top_k_passages: 5
+  max_graph_facts: 40
+  max_hops: 2
+  max_paths: 6
+
+temporal:
+  supersede_window_days: 7
+
+llm:
+  model: openai/gpt-oss-120b
+  extraction_temperature: 0.0
+  answer_temperature: 0.2
+
+extraction:
+  max_document_chars: 6000
+  entity_types: [Person, Organization, Product, Money]
+  allowed_relations: [FOUNDED, WORKED_AT, LEFT, LEADS, ACQUIRED, INVESTED_IN, RELEASED, RAISED, VALUED_AT]
+
+trust:
+  default_reliability: 0.6
+  source_weights:
+    TechCrunch: 0.88
+    The Verge: 0.87
+    Wired: 0.86
+    Ars Technica: 0.85
+    MIT Technology Review: 0.92
+    Reuters: 0.95
+    Bloomberg: 0.90
+    The Information: 0.88
+    Semafor: 0.78

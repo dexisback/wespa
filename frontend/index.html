@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory Engine — AI Knowledge Memory</title>
+<link rel="stylesheet" href="styles.css">
+<script src="vendor/vis-network.min.js"></script>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="brand">
+      <div class="logo">◆</div>
+      <div>
+        <h1>Memory Engine</h1>
+        <p class="tagline">An AI system that builds, maintains &amp; explains its own memory</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="btn-eval" class="btn ghost">Evaluation</button>
+      <div class="ingest-wrap">
+        <button id="btn-ingest" class="btn primary">Ingest new source</button>
+        <div id="fixture-menu" class="fixture-menu hidden"></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="ask">
+    <div class="searchbar">
+      <input id="question" type="text" placeholder="Ask the memory — e.g. Which companies did people who left OpenAI go on to found?" autocomplete="off">
+      <button id="btn-ask" class="btn primary">Ask</button>
+    </div>
+    <div class="modes">
+      <div class="mode-toggle" id="mode-toggle">
+        <button data-mode="hybrid" class="active">Hybrid</button>
+        <button data-mode="graph">Graph only</button>
+        <button data-mode="vector">Vector only</button>
+      </div>
+      <div id="latency" class="latency"></div>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div id="status" class="status hidden"></div>
+  </section>
+
+  <section id="result" class="result hidden">
+    <div class="answer-card">
+      <div class="answer-head">
+        <div class="badge" id="conf-badge">CONFIDENCE —</div>
+        <div id="conf-detail" class="conf-detail"></div>
+      </div>
+      <p id="answer" class="answer-text"></p>
+      <div id="conflicts" class="conflicts hidden"></div>
+    </div>
+
+    <div class="sources-label">Evidence</div>
+    <div id="source-cards" class="source-cards"></div>
+
+    <div class="facts-label" id="facts-block">
+      <div class="sources-label">Graph facts <span class="hint">click a fact for its history</span></div>
+      <div id="fact-chips" class="fact-chips"></div>
+    </div>
+
+    <div class="graph-label">
+      <div class="sources-label">Knowledge graph path</div>
+      <div class="graph-note" id="graph-note"></div>
+    </div>
+    <div id="graph" class="graph-container"></div>
+  </section>
+
+  <section id="empty" class="empty-state">
+    <p class="empty-title">Traditional RAG retrieves documents.</p>
+    <p class="empty-sub">This engine continuously ingests trusted sources, turns them into a connected knowledge graph, remembers how facts change over time, and shows its work: sources, confidence, and the exact graph path behind every answer.</p>
+  </section>
+
+  <div id="drawer" class="drawer hidden">
+    <div class="drawer-head">
+      <h3>Fact history</h3>
+      <button id="drawer-close" class="btn ghost small">✕</button>
+    </div>
+    <div id="drawer-body" class="drawer-body"></div>
+  </div>
+
+  <div id="eval-panel" class="modal hidden">
+    <div class="modal-card">
+      <div class="drawer-head">
+        <h3>Evaluation</h3>
+        <button id="eval-close" class="btn ghost small">✕</button>
+      </div>
+      <div id="eval-body" class="drawer-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

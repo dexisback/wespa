@@ -1,0 +1,115 @@
+{
+  "questions": [
+    {
+      "id": "q01",
+      "question": "Which companies did people who left OpenAI go on to found?",
+      "multi_hop": true,
+      "expected_facts": [
+        ["Ilya Sutskever", "FOUNDED", "Safe Superintelligence"],
+        ["Mira Murati", "FOUNDED", "Thinking Machines Lab"],
+        ["Dario Amodei", "FOUNDED", "Anthropic"],
+        ["Daniela Amodei", "FOUNDED", "Anthropic"],
+        ["David Luan", "FOUNDED", "Adept AI"],
+        ["Aravind Srinivas", "FOUNDED", "Perplexity AI"]
+      ],
+      "expected_keywords": ["Thinking Machines", "Anthropic"],
+      "expected_passage_keywords": ["founded"]
+    },
+    {
+      "id": "q02",
+      "question": "Which company acquired the startup that David Luan founded after leaving OpenAI?",
+      "multi_hop": true,
+      "expected_facts": [
+        ["David Luan", "FOUNDED", "Adept AI"],
+        ["Amazon", "ACQUIRED", "Adept AI"]
+      ],
+      "expected_keywords": ["Amazon"],
+      "expected_passage_keywords": ["Amazon", "Adept"]
+    },
+    {
+      "id": "q03",
+      "question": "Which company did Microsoft effectively acquire, and who had founded that startup?",
+      "multi_hop": true,
+      "expected_facts": [
+        ["Microsoft", "ACQUIRED", "Inflection AI"],
+        ["Mustafa Suleyman", "FOUNDED", "Inflection AI"],
+        ["Karen Simonyan", "FOUNDED", "Inflection AI"]
+      ],
+      "expected_keywords": ["Inflection", "Suleyman"],
+      "expected_passage_keywords": ["Inflection"]
+    },
+    {
+      "id": "q04",
+      "question": "How did Google end up re-hiring Noam Shazeer?",
+      "multi_hop": true,
+      "expected_facts": [
+        ["Noam Shazeer", "FOUNDED", "Character.AI"],
+        ["Google", "ACQUIRED", "Character.AI"]
+      ],
+      "expected_keywords": ["Character.AI"],
+      "expected_passage_keywords": ["Character"]
+    },
+    {
+      "id": "q05",
+      "question": "Who founded Anthropic?",
+      "multi_hop": false,
+      "expected_facts": [
+        ["Dario Amodei", "FOUNDED", "Anthropic"],
+        ["Daniela Amodei", "FOUNDED", "Anthropic"]
+      ],
+      "expected_keywords": ["Dario Amodei", "Daniela Amodei"],
+      "expected_passage_keywords": ["Amodei"]
+    },
+    {
+      "id": "q06",
+      "question": "What did OpenAI release in April 2025?",
+      "multi_hop": false,
+      "expected_facts": [
+        ["OpenAI", "RELEASED", "GPT-4o"]
+      ],
+      "expected_keywords": ["GPT-4o"],
+      "expected_passage_keywords": ["GPT-4o"]
+    },
+    {
+      "id": "q07",
+      "question": "Which company invested $8 billion in Anthropic?",
+      "multi_hop": false,
+      "expected_facts": [
+        ["Amazon", "INVESTED_IN", "$8 Billion"]
+      ],
+      "expected_keywords": ["Amazon"],
+      "expected_passage_keywords": ["Amazon"]
+    },
+    {
+      "id": "q08",
+      "question": "Who leads Mistral AI?",
+      "multi_hop": false,
+      "expected_facts": [
+        ["Arthur Mensch", "LEADS", "Mistral AI"]
+      ],
+      "expected_keywords": ["Arthur Mensch"],
+      "expected_passage_keywords": ["Mensch"]
+    },
+    {
+      "id": "q09",
+      "question": "What is Safe Superintelligence valued at after its June raise?",
+      "multi_hop": false,
+      "expected_facts": [
+        ["Safe Superintelligence", "VALUED_AT", "$32 Billion"]
+      ],
+      "expected_keywords": ["$32"],
+      "expected_passage_keywords": ["$32 billion"],
+      "post_update": true
+    },
+    {
+      "id": "q10",
+      "question": "Which lab released Claude 3?",
+      "multi_hop": false,
+      "expected_facts": [
+        ["Anthropic", "RELEASED", "Claude 3"]
+      ],
+      "expected_keywords": ["Anthropic"],
+      "expected_passage_keywords": ["Claude 3"]
+    }
+  ]
+}
