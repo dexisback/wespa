@@ -1,6 +1,9 @@
 # Demo Script (3 minutes)
 
-Prep: `docker compose up -d`, `python scripts/build_memory.py`, `uvicorn app.main:fastapi_app --port 8000`, open http://localhost:8000. Do NOT pre-ingest the June fixture.
+Prep: `docker compose up -d`, `python scripts/bootstrap_memory.py` (offline; or `build_memory.py` with a
+working Groq key), `uvicorn app.main:fastapi_app --port 8000`, open http://localhost:8000. Do NOT
+pre-ingest the June fixture. For a rate-limit-proof demo set `SKIP_LLM=true` in `.env` — queries stay
+instant (~400ms) and answers are assembled deterministically from the retrieved facts with full citations.
 
 1. **Ask (multi-hop).** Type or click: *"Which companies did people who left OpenAI go on to found?"*
    Point out the loading stages — entity extraction, graph search, semantic search, merge.

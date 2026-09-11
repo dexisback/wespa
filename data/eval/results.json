@@ -1,25 +1,25 @@
 {
   "status": "ok",
-  "generated_at": "2026-09-11T15:54:27.597257+00:00",
+  "generated_at": "2026-09-11T17:39:54.034904+00:00",
   "questions": 10,
   "multi_hop_questions": 4,
   "hit_at_5": {
     "vector": 1.0,
-    "graph": 0.7,
-    "hybrid": 0.7
+    "graph": 0.9,
+    "hybrid": 0.9
   },
   "recall_at_5": {
     "vector": 0.95,
-    "graph": 0.45,
-    "hybrid": 0.433
+    "graph": 0.7,
+    "hybrid": 0.7
   },
-  "hit_at_5_overall": 0.7,
-  "recall_at_5_overall": 0.433,
-  "multi_hop_accuracy": 0.75,
-  "avg_latency_ms": 7499.1,
+  "hit_at_5_overall": 0.9,
+  "recall_at_5_overall": 0.7,
+  "multi_hop_accuracy": 1.0,
+  "avg_latency_ms": 212.5,
   "temporal_correctness": {
     "result": "PASS",
-    "detail": "2 versions retained (1 historical, 1 active)"
+    "detail": "3 versions retained (2 historical, 1 active)"
   },
   "confidence_weighting": {
     "result": "PASS",
@@ -29,31 +29,18 @@
     {
       "id": "q01",
       "question": "Which companies did people who left OpenAI go on to found?",
-      "answer": "Former OpenAI staff have gone on to found several AI\u2011focused companies:\n\n* **Safe Superintelligence** \u2013 founded by Ilya\u202fSutskever (who left OpenAI) and by Daniel\u202fLevy (who also left OpenAI)\u202f(Reuters; MIT Technology Review).  \n* **Perplexity\u202fAI** \u2013 founded by former OpenAI researcher Aravind\u202fSrinivas\u202f(MIT Technology Review).  \n* **Anthropic** \u2013 founded by Dario\u202fAmodei and his sister Daniela\u202fAmodei after they left OpenAI\u202f(TechCrunch).  \n\nThese are the companies explicitly linked to ex\u2011OpenAI employees in the available evidence.",
+      "answer": "[LLM unavailable; templated answer from evidence]\nAnswer assembled from merged graph + semantic memory.\n\nKnowledge-graph facts:\n- Ilya Sutskever \u2192 FOUNDED \u2192 Safe Superintelligence (source: Reuters, confidence: 0.959, currently true)\n- Mira Murati \u2192 FOUNDED \u2192 Thinking Machines Lab (source: MIT Technology Review, confidence: 0.94, currently true)\n- David Luan \u2192 FOUNDED \u2192 Adept AI (source: MIT Technology Review, confidence: 0.865, currently true)\n- Daniela Amodei \u2192 FOUNDED \u2192 Anthropic (source: MIT Technology Review, confidence: 0.865, currently true)\n- Aravind Srinivas \u2192 FOUNDED \u2192 Perplexity AI (source: MIT Technology Review, confidence: 0.865, currently true)\n- Mira Murati \u2192 FOUNDED \u2192 Thinking Machines Lab (source: Bloomberg, confidence: 0.859, currently true)\n- Daniela Amodei \u2192 FOUNDED \u2192 Anthropic (source: TechCrunch, confidence: 0.778, currently true)\n- John Schulman \u2192 LEFT \u2192 OpenAI (source: Wired, confidence: 0.855, currently true)\n- Microsoft \u2192 INVESTED_IN \u2192 OpenAI (source: TechCrunch, confidence: 0.843, currently true)\n- Daniel Levy \u2192 LEFT \u2192 OpenAI (source: Reuters, confidence: 0.795, currently true)\n\nSupporting passages:\n- [The Information] Microsoft's bet on OpenAI remains the largest corporate AI partnership on record. People familiar with the arrangement say Microsoft invested $10 billion in OpenAI across its successive funding rounds, in exchange for a...\n- [TechCrunch] Anthropic, one of the most valuable AI startups in the world, began as an act of dissent. Dario Amodei left OpenAI in late 2020 after disagreements over how quickly the lab should commercialize its models. His sister Dan...\n- [Wired] The exodus from OpenAI's safety community shows no sign of slowing. John Schulman left OpenAI in January, stepping away from the alignment group he co-founded, and joined Anthropic shortly afterward to work on post-train...\n- [TechCrunch] TechCrunch's review of OpenAI's disclosed funding rounds puts Microsoft's total OpenAI investment at $13 billion, higher than the $10 billion figure widely cited last quarter. Microsoft invested $13 billion in OpenAI cum...\n\nSources: Bloomberg, MIT Technology Review, Reuters, TechCrunch, The Information, The Verge, Wired",
       "top_facts": [
         [
-          "ilya sutskever",
+          "aravind srinivas",
           "founded",
-          "safe superintelligence"
+          "perplexity ai"
         ],
         [
-          "ilya sutskever",
-          "leads",
-          "safe superintelligence"
+          "daniela amodei",
+          "founded",
+          "anthropic"
         ],
-        [
-          "microsoft",
-          "invested_in",
-          "openai"
-        ]
-      ],
-      "confidence": 0.924
-    },
-    {
-      "id": "q02",
-      "question": "Which company acquired the startup that David Luan founded after leaving OpenAI?",
-      "answer": "David\u202fLuan founded the startup Adept\u202fAI after leaving OpenAI, and Adept\u202fAI was later acquired by Amazon (Reuters).\u202f(Source: Reuters \u2013 \u201cAmazon\u202f[ACQUIRED]\u202fAdept\u202fAI\u201d; also TechCrunch notes Luan\u2019s OpenAI background and his role at Adept\u202fAI).",
-      "top_facts": [
         [
           "david luan",
           "founded",
@@ -65,22 +52,50 @@
           "safe superintelligence"
         ],
         [
-          "ilya sutskever",
-          "leads",
-          "safe superintelligence"
+          "mira murati",
+          "founded",
+          "thinking machines lab"
         ]
       ],
-      "confidence": 0.948
+      "confidence": 0.809
+    },
+    {
+      "id": "q02",
+      "question": "Which company acquired the startup that David Luan founded after leaving OpenAI?",
+      "answer": "[LLM unavailable; templated answer from evidence]\nAnswer assembled from merged graph + semantic memory.\n\nKnowledge-graph facts:\n- David Luan \u2192 FOUNDED \u2192 Adept AI (source: MIT Technology Review, confidence: 0.865, currently true)\n- David Luan \u2192 FOUNDED \u2192 Adept AI (source: TechCrunch, confidence: 0.774, currently true)\n- Ilya Sutskever \u2192 FOUNDED \u2192 Safe Superintelligence (source: Reuters, confidence: 0.959, currently true)\n- Mira Murati \u2192 FOUNDED \u2192 Thinking Machines Lab (source: MIT Technology Review, confidence: 0.94, currently true)\n- Daniela Amodei \u2192 FOUNDED \u2192 Anthropic (source: MIT Technology Review, confidence: 0.865, currently true)\n- Aravind Srinivas \u2192 FOUNDED \u2192 Perplexity AI (source: MIT Technology Review, confidence: 0.865, currently true)\n- Mira Murati \u2192 FOUNDED \u2192 Thinking Machines Lab (source: Bloomberg, confidence: 0.859, currently true)\n- Amazon \u2192 ACQUIRED \u2192 Adept AI (source: Reuters, confidence: 0.809, currently true)\n- Daniela Amodei \u2192 FOUNDED \u2192 Anthropic (source: TechCrunch, confidence: 0.778, currently true)\n- John Schulman \u2192 LEFT \u2192 OpenAI (source: Wired, confidence: 0.855, currently true)\n\nSupporting passages:\n- [TechCrunch] Adept AI has spent two years chasing an audacious goal: software agents that operate computers the way humans do. The startup was founded by David Luan, a former OpenAI researcher who earlier served as the lab's VP of en...\n- [TechCrunch] Anthropic, one of the most valuable AI startups in the world, began as an act of dissent. Dario Amodei left OpenAI in late 2020 after disagreements over how quickly the lab should commercialize its models. His sister Dan...\n- [TechCrunch] Elon Musk founded xAI two years ago with the stated mission of building a 'maximally truth-seeking' AI, and this week xAI released Grok 2 to premium subscribers of his social network. The model pulls real-time context fr...\n- [Wired] The exodus from OpenAI's safety community shows no sign of slowing. John Schulman left OpenAI in January, stepping away from the alignment group he co-founded, and joined Anthropic shortly afterward to work on post-train...\n\nSources: Bloomberg, MIT Technology Review, Reuters, TechCrunch, The Information, Wired",
+      "top_facts": [
+        [
+          "daniela amodei",
+          "founded",
+          "anthropic"
+        ],
+        [
+          "david luan",
+          "founded",
+          "adept ai"
+        ],
+        [
+          "ilya sutskever",
+          "founded",
+          "safe superintelligence"
+        ],
+        [
+          "mira murati",
+          "founded",
+          "thinking machines lab"
+        ]
+      ],
+      "confidence": 0.793
     },
     {
       "id": "q03",
       "question": "Which company did Microsoft effectively acquire, and who had founded that startup?",
-      "answer": "Microsoft effectively acquired **Inflection\u202fAI** (Bloomberg). The startup was founded by **Mustafa\u202fSuleyman and Karen\u202fSimonyan** (Bloomberg).",
+      "answer": "[LLM unavailable; templated answer from evidence]\nAnswer assembled from merged graph + semantic memory.\n\nKnowledge-graph facts:\n- Microsoft \u2192 ACQUIRED \u2192 Inflection AI (source: Bloomberg, confidence: 0.786, currently true)\n- Mustafa Suleyman \u2192 FOUNDED \u2192 Inflection AI (source: Bloomberg, confidence: 0.784, currently true)\n- Microsoft \u2192 INVESTED_IN \u2192 OpenAI (source: TechCrunch, confidence: 0.843, currently true)\n- Mustafa Suleyman \u2192 LEADS \u2192 Microsoft (source: Bloomberg, confidence: 0.78, currently true)\n- Karen Simonyan \u2192 WORKED_AT \u2192 Microsoft (source: Bloomberg, confidence: 0.776, currently true)\n- Microsoft \u2192 INVESTED_IN \u2192 $10 Billion (source: The Information, confidence: 0.766, currently true) [CONFLICTING CLAIM]\n- Microsoft \u2192 INVESTED_IN \u2192 OpenAI (source: The Information, confidence: 0.576, currently true) [CONFLICTING CLAIM]\n- Microsoft \u2192 INVESTED_IN \u2192 $13 Billion (source: TechCrunch, confidence: 0.575, currently true) [CONFLICTING CLAIM]\n- John Schulman \u2192 LEFT \u2192 OpenAI (source: Wired, confidence: 0.855, currently true)\n- Daniel Levy \u2192 LEFT \u2192 OpenAI (source: Reuters, confidence: 0.795, currently true)\n\nSupporting passages:\n- [Bloomberg] Microsoft has effectively acquired Inflection AI, hiring away co-founders Mustafa Suleyman and Karen Simonyan along with most of the startup's staff, in a deal structured as an equity payout rather than an outright purch...\n- [The Information] Microsoft's bet on OpenAI remains the largest corporate AI partnership on record. People familiar with the arrangement say Microsoft invested $10 billion in OpenAI across its successive funding rounds, in exchange for a...\n- [TechCrunch] TechCrunch's review of OpenAI's disclosed funding rounds puts Microsoft's total OpenAI investment at $13 billion, higher than the $10 billion figure widely cited last quarter. Microsoft invested $13 billion in OpenAI cum...\n- [MIT Technology Review] Trace the family tree of today's AI startups and one root dominates: OpenAI. Dario Amodei and Daniela Amodei founded Anthropic after leaving the lab. Mira Murati founded Thinking Machines Lab. David Luan founded Adept AI...\n\nSources: Bloomberg, MIT Technology Review, Reuters, TechCrunch, The Information, The Verge, Wired",
       "top_facts": [
         [
-          "daniel levy",
-          "left",
-          "openai"
+          "karen simonyan",
+          "worked_at",
+          "microsoft"
         ],
         [
           "microsoft",
@@ -99,123 +114,138 @@
         ],
         [
           "mustafa suleyman",
-          "worked_at",
+          "leads",
           "microsoft"
         ]
       ],
-      "confidence": 0.816
+      "confidence": 0.572
     },
     {
       "id": "q04",
       "question": "How did Google end up re-hiring Noam Shazeer?",
-      "answer": "Google re\u2011hired Noam\u202fShazeer when it struck a deal to acquire Character.AI.  In a roughly $2.7\u202fbillion transaction, Google licensed the startup\u2019s technology, bought the company and hired its founders, bringing Shazeer\u2014who had left Google in 2021 to start Character.AI\u2014back to work on Google\u2019s Gemini model (The Information, 2025\u201103\u201126).  The acquisition of Character.AI therefore provided the mechanism for Shazeer\u2019s return to Google (graph facts: Shazeer LEFT Google, FOUNDED Character.AI; Google ACQUIRED Character.AI).",
+      "answer": "[LLM unavailable; templated answer from evidence]\nAnswer assembled from merged graph + semantic memory.\n\nKnowledge-graph facts:\n- Noam Shazeer \u2192 WORKED_AT \u2192 Google (source: The Information, confidence: 0.845, currently true)\n- Noam Shazeer \u2192 WORKED_AT \u2192 Google (source: Bloomberg, confidence: 0.776, currently true)\n- Google \u2192 ACQUIRED \u2192 Character.AI (source: The Information, confidence: 0.774, currently true)\n- Noam Shazeer \u2192 LEFT \u2192 Google (source: Bloomberg, confidence: 0.776, currently true)\n- John Schulman \u2192 WORKED_AT \u2192 Anthropic (source: Wired, confidence: 0.855, currently true)\n- John Schulman \u2192 WORKED_AT \u2192 Anthropic (source: Wired, confidence: 0.76, currently true)\n- Google \u2192 INVESTED_IN \u2192 $3 Billion (source: Reuters, confidence: 0.801, currently true) [CONFLICTING CLAIM]\n- Noam Shazeer \u2192 FOUNDED \u2192 Character.AI (source: Bloomberg, confidence: 0.786, currently true)\n- Noam Shazeer \u2192 LEADS \u2192 Character.AI (source: Bloomberg, confidence: 0.78, currently true)\n- Google \u2192 INVESTED_IN \u2192 Anthropic (source: Reuters, confidence: 0.602, currently true) [CONFLICTING CLAIM]\n\nSupporting passages:\n- [The Information] Google has agreed to pay roughly $2.7 billion in a deal that sees it effectively acquire Character.AI, bringing back transformer co-inventor Noam Shazeer. Under the arrangement, Google acquired Character.AI's technology...\n- [Bloomberg] Before Character.AI, Noam Shazeer spent two decades at Google, where he co-authored the transformer architecture that underpins modern AI. Shazeer left Google in 2021, frustrated by its caution around chatbots, and found...\n- [Wired] Aravind Srinivas, a former OpenAI researcher who worked on the lab's early image models, founded Perplexity AI in 2022 to rebuild web search around direct, cited answers. Srinivas leads Perplexity AI as chief executive,...\n- [Reuters] Anthropic's strategic backing now rivals OpenAI's war chest. Amazon invested $8 billion in Anthropic in total, completing the tranche it began last year, and made Claude the default model assistant on AWS Bedrock. Separa...\n\nSources: Bloomberg, MIT Technology Review, Reuters, TechCrunch, The Information, Wired",
       "top_facts": [
+        [
+          "google",
+          "acquired",
+          "character.ai"
+        ],
+        [
+          "john schulman",
+          "worked_at",
+          "anthropic"
+        ],
+        [
+          "noam shazeer",
+          "left",
+          "google"
+        ],
+        [
+          "noam shazeer",
+          "worked_at",
+          "google"
+        ]
+      ],
+      "confidence": 0.58
+    },
+    {
+      "id": "q05",
+      "question": "Who founded Anthropic?",
+      "answer": "[LLM unavailable; templated answer from evidence]\nAnswer assembled from merged graph + semantic memory.\n\nKnowledge-graph facts:\n- Daniela Amodei \u2192 FOUNDED \u2192 Anthropic (source: MIT Technology Review, confidence: 0.865, currently true)\n- Daniela Amodei \u2192 FOUNDED \u2192 Anthropic (source: TechCrunch, confidence: 0.778, currently true)\n- John Schulman \u2192 WORKED_AT \u2192 Anthropic (source: Wired, confidence: 0.855, currently true)\n- Dario Amodei \u2192 LEADS \u2192 Anthropic (source: Wired, confidence: 0.855, currently true)\n- Anthropic \u2192 RAISED \u2192 $3 Billion (source: Wired, confidence: 0.78, currently true)\n- Anthropic \u2192 RELEASED \u2192 Claude Enterprise (source: Wired, confidence: 0.78, currently true)\n- Anthropic \u2192 VALUED_AT \u2192 $180 billion (source: Wired, confidence: 0.78, currently true)\n- Dario Amodei \u2192 LEADS \u2192 Anthropic (source: TechCrunch, confidence: 0.77, currently true)\n- John Schulman \u2192 WORKED_AT \u2192 Anthropic (source: Wired, confidence: 0.76, currently true)\n- Amazon \u2192 INVESTED_IN \u2192 Anthropic (source: Reuters, confidence: 0.602, currently true) [CONFLICTING CLAIM]\n\nSupporting passages:\n- [Wired] Anthropic launched Claude Enterprise for businesses in September. Dario Amodei leads Anthropic as chief executive. Anthropic raised $3 billion in new funding at a $180 billion valuation, according to sources. John Schulm...\n- [MIT Technology Review] Trace the family tree of today's AI startups and one root dominates: OpenAI. Dario Amodei and Daniela Amodei founded Anthropic after leaving the lab. Mira Murati founded Thinking Machines Lab. David Luan founded Adept AI...\n- [TechCrunch] Anthropic, one of the most valuable AI startups in the world, began as an act of dissent. Dario Amodei left OpenAI in late 2020 after disagreements over how quickly the lab should commercialize its models. His sister Dan...\n- [Reuters] Anthropic's strategic backing now rivals OpenAI's war chest. Amazon invested $8 billion in Anthropic in total, completing the tranche it began last year, and made Claude the default model assistant on AWS Bedrock. Separa...\n\nSources: Ars Technica, MIT Technology Review, Reuters, TechCrunch, The Information, Wired",
+      "top_facts": [
+        [
+          "anthropic",
+          "raised",
+          "$3 billion"
+        ],
+        [
+          "daniela amodei",
+          "founded",
+          "anthropic"
+        ],
+        [
+          "dario amodei",
+          "leads",
+          "anthropic"
+        ],
+        [
+          "john schulman",
+          "worked_at",
+          "anthropic"
+        ]
+      ],
+      "confidence": 0.595
+    },
+    {
+      "id": "q06",
+      "question": "What did OpenAI release in April 2025?",
+      "answer": "[LLM unavailable; templated answer from evidence]\nAnswer assembled from merged graph + semantic memory.\n\nKnowledge-graph facts:\n- OpenAI \u2192 RELEASED \u2192 GPT-5 (source: Wired, confidence: 0.78, currently true)\n- Sam Altman \u2192 LEADS \u2192 OpenAI (source: The Verge, confidence: 0.769, currently true)\n- Ilya Sutskever \u2192 LEFT \u2192 OpenAI (source: Semafor, confidence: 0.72, currently true)\n- Ilya Sutskever \u2192 WORKED_AT \u2192 OpenAI (source: Semafor, confidence: 0.716, currently true)\n- OpenAI \u2192 RELEASED \u2192 GPT-4o (source: The Verge, confidence: 0.771, held until 2026-09-11)\n- David Luan \u2192 WORKED_AT \u2192 Amazon (source: Reuters, confidence: 0.805, currently true)\n- John Schulman \u2192 LEFT \u2192 OpenAI (source: Wired, confidence: 0.855, currently true)\n- Microsoft \u2192 INVESTED_IN \u2192 OpenAI (source: TechCrunch, confidence: 0.843, currently true)\n- Daniel Levy \u2192 LEFT \u2192 OpenAI (source: Reuters, confidence: 0.795, currently true)\n- OpenAI \u2192 VALUED_AT \u2192 $500 billion (source: Wired, confidence: 0.78, currently true)\n\nSupporting passages:\n- [The Verge] OpenAI released GPT-4o on Thursday, its new flagship model that natively handles text, audio, and vision in a single network. Sam Altman leads OpenAI and called the model 'our fastest and most capable yet.' The company s...\n- [TechCrunch] TechCrunch's review of OpenAI's disclosed funding rounds puts Microsoft's total OpenAI investment at $13 billion, higher than the $10 billion figure widely cited last quarter. Microsoft invested $13 billion in OpenAI cum...\n- [TechCrunch] Anthropic, one of the most valuable AI startups in the world, began as an act of dissent. Dario Amodei left OpenAI in late 2020 after disagreements over how quickly the lab should commercialize its models. His sister Dan...\n- [The Information] Microsoft's bet on OpenAI remains the largest corporate AI partnership on record. People familiar with the arrangement say Microsoft invested $10 billion in OpenAI across its successive funding rounds, in exchange for a...\n\nSources: Reuters, Semafor, TechCrunch, The Information, The Verge, Wired",
+      "top_facts": [
+        [
+          "ilya sutskever",
+          "left",
+          "openai"
+        ],
+        [
+          "ilya sutskever",
+          "worked_at",
+          "openai"
+        ],
+        [
+          "openai",
+          "released",
+          "gpt-4o"
+        ],
+        [
+          "openai",
+          "released",
+          "gpt-5"
+        ],
+        [
+          "sam altman",
+          "leads",
+          "openai"
+        ]
+      ],
+      "confidence": 0.541
+    },
+    {
+      "id": "q07",
+      "question": "Which company invested $8 billion in Anthropic?",
+      "answer": "[LLM unavailable; templated answer from evidence]\nAnswer assembled from merged graph + semantic memory.\n\nKnowledge-graph facts:\n- Amazon \u2192 INVESTED_IN \u2192 Anthropic (source: Reuters, confidence: 0.602, currently true) [CONFLICTING CLAIM]\n- Google \u2192 INVESTED_IN \u2192 $3 Billion (source: Reuters, confidence: 0.801, currently true) [CONFLICTING CLAIM]\n- Daniela Amodei \u2192 FOUNDED \u2192 Anthropic (source: MIT Technology Review, confidence: 0.865, currently true)\n- John Schulman \u2192 WORKED_AT \u2192 Anthropic (source: Wired, confidence: 0.855, currently true)\n- Dario Amodei \u2192 LEADS \u2192 Anthropic (source: Wired, confidence: 0.855, currently true)\n- Anthropic \u2192 RAISED \u2192 $3 Billion (source: Wired, confidence: 0.78, currently true)\n- Anthropic \u2192 RELEASED \u2192 Claude Enterprise (source: Wired, confidence: 0.78, currently true)\n- Anthropic \u2192 VALUED_AT \u2192 $180 billion (source: Wired, confidence: 0.78, currently true)\n- Daniela Amodei \u2192 FOUNDED \u2192 Anthropic (source: TechCrunch, confidence: 0.778, currently true)\n- Dario Amodei \u2192 LEADS \u2192 Anthropic (source: TechCrunch, confidence: 0.77, currently true)\n\nSupporting passages:\n- [Wired] Anthropic launched Claude Enterprise for businesses in September. Dario Amodei leads Anthropic as chief executive. Anthropic raised $3 billion in new funding at a $180 billion valuation, according to sources. John Schulm...\n- [Reuters] Anthropic's strategic backing now rivals OpenAI's war chest. Amazon invested $8 billion in Anthropic in total, completing the tranche it began last year, and made Claude the default model assistant on AWS Bedrock. Separa...\n- [TechCrunch] Anthropic, one of the most valuable AI startups in the world, began as an act of dissent. Dario Amodei left OpenAI in late 2020 after disagreements over how quickly the lab should commercialize its models. His sister Dan...\n- [The Information] Microsoft's bet on OpenAI remains the largest corporate AI partnership on record. People familiar with the arrangement say Microsoft invested $10 billion in OpenAI across its successive funding rounds, in exchange for a...\n\nSources: Ars Technica, MIT Technology Review, Reuters, TechCrunch, The Information, Wired",
+      "top_facts": [
+        [
+          "amazon",
+          "invested_in",
+          "anthropic"
+        ],
+        [
+          "daniela amodei",
+          "founded",
+          "anthropic"
+        ],
+        [
+          "dario amodei",
+          "leads",
+          "anthropic"
+        ],
         [
           "google",
           "invested_in",
           "$3 billion"
         ],
         [
-          "noam shazeer",
-          "founded",
-          "character.ai"
-        ],
-        [
-          "noam shazeer",
-          "left",
-          "google"
-        ],
-        [
-          "noam shazeer",
-          "worked_at",
-          "google"
-        ]
-      ],
-      "confidence": 0.68
-    },
-    {
-      "id": "q05",
-      "question": "Who founded Anthropic?",
-      "answer": "Anthropic was founded by the Amodei siblings \u2013 Dario\u202fAmodei and his sister Daniela\u202fAmodei (MIT Technology Review; TechCrunch). Both sources describe them leaving OpenAI and launching Anthropic together in 2021. (Source: MIT Technology Review; Source: TechCrunch)",
-      "top_facts": [
-        [
-          "daniela amodei",
-          "left",
-          "openai"
-        ],
-        [
-          "dario amodei",
-          "founded",
-          "anthropic"
-        ],
-        [
-          "dario amodei",
-          "leads",
-          "anthropic"
-        ],
-        [
           "john schulman",
           "worked_at",
           "anthropic"
         ]
       ],
-      "confidence": 0.802
-    },
-    {
-      "id": "q06",
-      "question": "What did OpenAI release in April 2025?",
-      "answer": "In April\u202f2025 OpenAI launched **GPT\u20114o**, its new flagship model that natively handles text, audio and vision in a single network and adds a real\u2011time voice mode (The Verge, 2025\u201104\u201110). The company made GPT\u20114o available to all users, including the free\u2011tier tier.",
-      "top_facts": [
-        [
-          "ilya sutskever",
-          "founded",
-          "safe superintelligence"
-        ],
-        [
-          "ilya sutskever",
-          "leads",
-          "safe superintelligence"
-        ],
-        [
-          "microsoft",
-          "invested_in",
-          "openai"
-        ]
-      ],
-      "confidence": 0.924
-    },
-    {
-      "id": "q07",
-      "question": "Which company invested $8 billion in Anthropic?",
-      "answer": "Amazon invested\u202f$8\u202fbillion in Anthropic, completing the tranche it began the previous year (Source: Reuters, 2025\u201104\u201122).",
-      "top_facts": [
-        [
-          "daniela amodei",
-          "left",
-          "openai"
-        ],
-        [
-          "dario amodei",
-          "founded",
-          "anthropic"
-        ],
-        [
-          "dario amodei",
-          "leads",
-          "anthropic"
-        ],
-        [
-          "john schulman",
-          "worked_at",
-          "anthropic"
-        ]
-      ],
-      "confidence": 0.802
+      "confidence": 0.573
     },
     {
       "id": "q08",
       "question": "Who leads Mistral AI?",
-      "answer": "Arthur\u202fMensch leads Mistral\u202fAI, serving as its chief executive (Source: MIT Technology Review).",
+      "answer": "[LLM unavailable; templated answer from evidence]\nAnswer assembled from merged graph + semantic memory.\n\nKnowledge-graph facts:\n- Arthur Mensch \u2192 LEADS \u2192 Mistral AI (source: MIT Technology Review, confidence: 0.79, currently true)\n- Arthur Mensch \u2192 FOUNDED \u2192 Mistral AI (source: MIT Technology Review, confidence: 0.865, currently true)\n- Arthur Mensch \u2192 FOUNDED \u2192 Mistral AI (source: MIT Technology Review, confidence: 0.794, currently true)\n- Timothee Lacroix \u2192 WORKED_AT \u2192 Meta AI (source: MIT Technology Review, confidence: 0.786, currently true)\n\nSupporting passages:\n- [MIT Technology Review] Mistral AI has become Europe's most valuable AI startup with an unusual origin: all three of its founders are former Meta AI researchers. Arthur Mensch, Guillaume Lample, and Timothee Lacroix each worked at Meta AI on la...\n- [MIT Technology Review] Trace the family tree of today's AI startups and one root dominates: OpenAI. Dario Amodei and Daniela Amodei founded Anthropic after leaving the lab. Mira Murati founded Thinking Machines Lab. David Luan founded Adept AI...\n- [Reuters] Amazon said on Wednesday it has acqui-hired most of Adept AI, the agentic AI startup, in a licensing deal that brings co-founder David Luan and the majority of the team into Amazon's AGI lab. The agreement, first reporte...\n- [TechCrunch] Adept AI has spent two years chasing an audacious goal: software agents that operate computers the way humans do. The startup was founded by David Luan, a former OpenAI researcher who earlier served as the lab's VP of en...\n\nSources: Bloomberg, MIT Technology Review, Reuters, TechCrunch",
       "top_facts": [
         [
           "arthur mensch",
@@ -228,22 +258,17 @@
           "mistral ai"
         ],
         [
-          "mistral ai",
-          "released",
-          "weights"
-        ],
-        [
           "timothee lacroix",
-          "left",
+          "worked_at",
           "meta ai"
         ]
       ],
-      "confidence": 0.823
+      "confidence": 0.728
     },
     {
       "id": "q09",
       "question": "What is Safe Superintelligence valued at after its June raise?",
-      "answer": "Safe Superintelligence was valued at **$32\u202fbillion** after its June funding round (Reuters).",
+      "answer": "[LLM unavailable; templated answer from evidence]\nAnswer assembled from merged graph + semantic memory.\n\nKnowledge-graph facts:\n- Safe Superintelligence \u2192 RAISED \u2192 $1 Billion (source: Reuters, confidence: 0.805, currently true)\n- Safe Superintelligence \u2192 VALUED_AT \u2192 $32 Billion (source: Reuters, confidence: 0.805, currently true)\n- Ilya Sutskever \u2192 FOUNDED \u2192 Safe Superintelligence (source: Reuters, confidence: 0.959, currently true)\n- Ilya Sutskever \u2192 LEADS \u2192 Safe Superintelligence (source: Reuters, confidence: 0.955, currently true)\n- Ilya Sutskever \u2192 FOUNDED \u2192 Safe Superintelligence (source: MIT Technology Review, confidence: 0.94, currently true)\n- Ilya Sutskever \u2192 FOUNDED \u2192 Safe Superintelligence (source: The Information, confidence: 0.849, currently true)\n- Ilya Sutskever \u2192 LEADS \u2192 Safe Superintelligence (source: The Information, confidence: 0.845, currently true)\n- Daniel Gross \u2192 WORKED_AT \u2192 Safe Superintelligence (source: Reuters, confidence: 0.801, currently true)\n- Ilya Sutskever \u2192 FOUNDED \u2192 Safe Superintelligence (source: Semafor, confidence: 0.726, currently true)\n- Ilya Sutskever \u2192 LEADS \u2192 Safe Superintelligence (source: Semafor, confidence: 0.724, currently true)\n\nSupporting passages:\n- [The Information] Safe Superintelligence has assembled a small, elite research team working on exactly one product, according to interviews with people close to the company. Ilya Sutskever founded Safe Superintelligence and leads the lab...\n- [Reuters] Safe Superintelligence, the lab founded by former OpenAI chief scientist Ilya Sutskever, has closed its first external round: $1 billion in new funding at a $32 billion valuation, up from the near-$20 billion valuation i...\n- [Semafor] Ilya Sutskever, who spent a decade at OpenAI as its chief scientist, left OpenAI earlier this year and founded Safe Superintelligence, a lab with one product and one goal: a superintelligent AI that cannot harm people. S...\n- [Bloomberg] Thinking Machines Lab, the startup founded by former OpenAI chief technology officer Mira Murati, has closed a $2 billion seed round at a $12 billion valuation, one of the largest seed rounds ever recorded. The round was...\n\nSources: Bloomberg, MIT Technology Review, Reuters, Semafor, The Information",
       "top_facts": [
         [
           "ilya sutskever",
@@ -254,14 +279,24 @@
           "ilya sutskever",
           "leads",
           "safe superintelligence"
+        ],
+        [
+          "safe superintelligence",
+          "raised",
+          "$1 billion"
+        ],
+        [
+          "safe superintelligence",
+          "valued_at",
+          "$32 billion"
         ]
       ],
-      "confidence": 0.924
+      "confidence": 0.804
     },
     {
       "id": "q10",
       "question": "Which lab released Claude 3?",
-      "answer": "Anthropic released Claude\u202f3 (as noted in the Ars Technica article and the knowledge\u2011graph fact linking Anthropic to the release of Claude\u202f3). (Source: Ars Technica).",
+      "answer": "[LLM unavailable; templated answer from evidence]\nAnswer assembled from merged graph + semantic memory.\n\nKnowledge-graph facts:\n- Anthropic \u2192 RELEASED \u2192 Claude Enterprise (source: Wired, confidence: 0.78, currently true)\n- Anthropic \u2192 RELEASED \u2192 Claude 3 (source: Ars Technica, confidence: 0.761, held until 2026-09-11)\n- Dario Amodei \u2192 FOUNDED \u2192 Anthropic (source: MIT Technology Review, confidence: 0.865, currently true)\n- John Schulman \u2192 WORKED_AT \u2192 Anthropic (source: Wired, confidence: 0.855, currently true)\n- Dario Amodei \u2192 LEADS \u2192 Anthropic (source: Wired, confidence: 0.855, currently true)\n- Anthropic \u2192 RAISED \u2192 $3 Billion (source: Wired, confidence: 0.78, currently true)\n- Anthropic \u2192 VALUED_AT \u2192 $180 billion (source: Wired, confidence: 0.78, currently true)\n- Dario Amodei \u2192 FOUNDED \u2192 Anthropic (source: TechCrunch, confidence: 0.778, currently true)\n- Dario Amodei \u2192 LEADS \u2192 Anthropic (source: TechCrunch, confidence: 0.77, currently true)\n- John Schulman \u2192 WORKED_AT \u2192 Anthropic (source: Wired, confidence: 0.76, currently true)\n\nSupporting passages:\n- [Ars Technica] Anthropic released Claude 3, a three-tier family of models named Opus, Sonnet, and Haiku, and the top tier now matches or beats GPT-4 on several widely watched benchmarks. Anthropic released Claude 3 to its API and consu...\n- [Wired] Anthropic launched Claude Enterprise for businesses in September. Dario Amodei leads Anthropic as chief executive. Anthropic raised $3 billion in new funding at a $180 billion valuation, according to sources. John Schulm...\n- [Reuters] Anthropic's strategic backing now rivals OpenAI's war chest. Amazon invested $8 billion in Anthropic in total, completing the tranche it began last year, and made Claude the default model assistant on AWS Bedrock. Separa...\n- [The Information] Safe Superintelligence has assembled a small, elite research team working on exactly one product, according to interviews with people close to the company. Ilya Sutskever founded Safe Superintelligence and leads the lab...\n\nSources: Ars Technica, Bloomberg, MIT Technology Review, Reuters, TechCrunch, The Information, Wired",
       "top_facts": [
         [
           "anthropic",
@@ -269,6 +304,11 @@
           "claude 3"
         ],
         [
+          "anthropic",
+          "released",
+          "claude enterprise"
+        ],
+        [
           "dario amodei",
           "founded",
           "anthropic"
@@ -284,7 +324,7 @@
           "anthropic"
         ]
       ],
-      "confidence": 0.799
+      "confidence": 0.593
     }
   ]
 }

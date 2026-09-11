@@ -42,7 +42,28 @@ def test_chunker_sizes_and_overlap():
     assert chunk_text("   ")[0:0] == []
 
 
-def test_pipeline_ingests_document_end_to_end():
+def _fake_extractors(monkeypatch):
+    from app.extraction.schemas import Entity
+    from app.trust.source_weights import entity_id_for
+
+    def entities(text):
+        names = []
+        for n in ("Ilya Sutskever", "Safe Superintelligence"):
+            if n.lower() in text.lower():
+                names.append(n)
+        return [Entity(entity_id=entity_id_for(n), name=n, type="Person" if n == "Ilya Sutskever" else "Organization") for n in names]
+
+    def relations(text, names, allowed):
+        if "sutskever" in text.lower() and "safe superintelligence" in text.lower():
+            return [{"subject": "Ilya Sutskever", "relation": "FOUNDED", "object": "Safe Superintelligence", "extraction_confidence": 0.9}]
+        return []
+
+    monkeypatch.setattr("app.ingestion.pipeline.extract_entities", entities)
+    monkeypatch.setattr("app.ingestion.pipeline.extract_relations", relations)
+
+
+def test_pipeline_ingests_document_end_to_end(monkeypatch):
+    _fake_extractors(monkeypatch)
     graph, db, vectors = FakeGraphWriter(), FakeDB(), FakeVectors()
     docs = [make_doc("d1", "Ilya Sutskever founded Safe Superintelligence in March 2025. " * 3)]
     summary = ingest_documents(docs, graph=graph, db=db, vectors=vectors, run_id="r1")
@@ -53,7 +74,8 @@ def test_pipeline_ingests_document_end_to_end():
     assert any(f["relation"] == "FOUNDED" for f in graph.facts.values())
 
 
-def test_pipeline_skips_duplicate_document():
+def test_pipeline_skips_duplicate_document(monkeypatch):
+    _fake_extractors(monkeypatch)
     graph, db, vectors = FakeGraphWriter(), FakeDB(), FakeVectors()
     docs = [make_doc("d1", "Ilya Sutskever founded Safe Superintelligence in March 2025. " * 3)]
     ingest_documents(docs, graph=graph, db=db, vectors=vectors, run_id="r1")

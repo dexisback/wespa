@@ -1,0 +1,217 @@
+{
+  "entities": [
+    {"entity_id": "ent_openai", "name": "OpenAI", "type": "Organization"},
+    {"entity_id": "ent_anthropic", "name": "Anthropic", "type": "Organization"},
+    {"entity_id": "ent_thinking_machines_lab", "name": "Thinking Machines Lab", "type": "Organization"},
+    {"entity_id": "ent_adept_ai", "name": "Adept AI", "type": "Organization"},
+    {"entity_id": "ent_amazon", "name": "Amazon", "type": "Organization"},
+    {"entity_id": "ent_character_ai", "name": "Character.AI", "type": "Organization"},
+    {"entity_id": "ent_google", "name": "Google", "type": "Organization"},
+    {"entity_id": "ent_inflection_ai", "name": "Inflection AI", "type": "Organization"},
+    {"entity_id": "ent_microsoft", "name": "Microsoft", "type": "Organization"},
+    {"entity_id": "ent_meta_ai", "name": "Meta AI", "type": "Organization"},
+    {"entity_id": "ent_mistral_ai", "name": "Mistral AI", "type": "Organization"},
+    {"entity_id": "ent_safe_superintelligence", "name": "Safe Superintelligence", "type": "Organization"},
+    {"entity_id": "ent_perplexity_ai", "name": "Perplexity AI", "type": "Organization"},
+    {"entity_id": "ent_xai", "name": "xAI", "type": "Organization"},
+    {"entity_id": "ent_dario_amodei", "name": "Dario Amodei", "type": "Person"},
+    {"entity_id": "ent_daniela_amodei", "name": "Daniela Amodei", "type": "Person"},
+    {"entity_id": "ent_mira_murati", "name": "Mira Murati", "type": "Person"},
+    {"entity_id": "ent_john_schulman", "name": "John Schulman", "type": "Person"},
+    {"entity_id": "ent_jan_leike", "name": "Jan Leike", "type": "Person"},
+    {"entity_id": "ent_david_luan", "name": "David Luan", "type": "Person"},
+    {"entity_id": "ent_noam_shazeer", "name": "Noam Shazeer", "type": "Person"},
+    {"entity_id": "ent_mustafa_suleyman", "name": "Mustafa Suleyman", "type": "Person"},
+    {"entity_id": "ent_karen_simonyan", "name": "Karen Simonyan", "type": "Person"},
+    {"entity_id": "ent_arthur_mensch", "name": "Arthur Mensch", "type": "Person"},
+    {"entity_id": "ent_guillaume_lample", "name": "Guillaume Lample", "type": "Person"},
+    {"entity_id": "ent_timothee_lacroix", "name": "Timothee Lacroix", "type": "Person"},
+    {"entity_id": "ent_ilya_sutskever", "name": "Ilya Sutskever", "type": "Person"},
+    {"entity_id": "ent_aravind_srinivas", "name": "Aravind Srinivas", "type": "Person"},
+    {"entity_id": "ent_sam_altman", "name": "Sam Altman", "type": "Person"},
+    {"entity_id": "ent_elon_musk", "name": "Elon Musk", "type": "Person"},
+    {"entity_id": "ent_daniel_gross", "name": "Daniel Gross", "type": "Person"},
+    {"entity_id": "ent_daniel_levy", "name": "Daniel Levy", "type": "Person"},
+    {"entity_id": "ent_apple", "name": "Apple", "type": "Organization"},
+    {"entity_id": "ent_gpt_4o", "name": "GPT-4o", "type": "Product"},
+    {"entity_id": "ent_claude_3", "name": "Claude 3", "type": "Product"},
+    {"entity_id": "ent_grok", "name": "Grok", "type": "Product"},
+    {"entity_id": "ent_llama_3", "name": "Llama 3", "type": "Product"},
+    {"entity_id": "ent_2_billion", "name": "$2 Billion", "type": "Money"},
+    {"entity_id": "ent_12_billion", "name": "$12 Billion", "type": "Money"},
+    {"entity_id": "ent_20_billion", "name": "$20 Billion", "type": "Money"},
+    {"entity_id": "ent_32_billion", "name": "$32 Billion", "type": "Money"},
+    {"entity_id": "ent_1_billion", "name": "$1 Billion", "type": "Money"},
+    {"entity_id": "ent_10_billion", "name": "$10 Billion", "type": "Money"},
+    {"entity_id": "ent_13_billion", "name": "$13 Billion", "type": "Money"},
+    {"entity_id": "ent_8_billion", "name": "$8 Billion", "type": "Money"},
+    {"entity_id": "ent_3_billion", "name": "$3 Billion", "type": "Money"},
+    {"entity_id": "ent_2_7_billion", "name": "$2.7 Billion", "type": "Money"}
+  ],
+  "documents": {
+    "d01": {
+      "relations": [
+        {"subject": "Dario Amodei", "relation": "LEFT", "object": "OpenAI", "extraction_confidence": 0.92},
+        {"subject": "Daniela Amodei", "relation": "LEFT", "object": "OpenAI", "extraction_confidence": 0.92},
+        {"subject": "Dario Amodei", "relation": "FOUNDED", "object": "Anthropic", "extraction_confidence": 0.94},
+        {"subject": "Daniela Amodei", "relation": "FOUNDED", "object": "Anthropic", "extraction_confidence": 0.94},
+        {"subject": "Dario Amodei", "relation": "LEADS", "object": "Anthropic", "extraction_confidence": 0.90}
+      ]
+    },
+    "d02": {
+      "relations": [
+        {"subject": "Mira Murati", "relation": "LEFT", "object": "OpenAI", "extraction_confidence": 0.92},
+        {"subject": "Mira Murati", "relation": "FOUNDED", "object": "Thinking Machines Lab", "extraction_confidence": 0.93},
+        {"subject": "Mira Murati", "relation": "LEADS", "object": "Thinking Machines Lab", "extraction_confidence": 0.92},
+        {"subject": "Thinking Machines Lab", "relation": "VALUED_AT", "object": "$2 Billion", "extraction_confidence": 0.85}
+      ]
+    },
+    "d03": {
+      "relations": [
+        {"subject": "John Schulman", "relation": "LEFT", "object": "OpenAI", "extraction_confidence": 0.91},
+        {"subject": "John Schulman", "relation": "WORKED_AT", "object": "Anthropic", "extraction_confidence": 0.90},
+        {"subject": "Jan Leike", "relation": "LEFT", "object": "OpenAI", "extraction_confidence": 0.91},
+        {"subject": "Jan Leike", "relation": "WORKED_AT", "object": "Anthropic", "extraction_confidence": 0.90}
+      ]
+    },
+    "d04": {
+      "relations": [
+        {"subject": "David Luan", "relation": "WORKED_AT", "object": "OpenAI", "extraction_confidence": 0.85},
+        {"subject": "David Luan", "relation": "FOUNDED", "object": "Adept AI", "extraction_confidence": 0.92},
+        {"subject": "David Luan", "relation": "LEADS", "object": "Adept AI", "extraction_confidence": 0.88}
+      ]
+    },
+    "d05": {
+      "relations": [
+        {"subject": "Amazon", "relation": "ACQUIRED", "object": "Adept AI", "extraction_confidence": 0.92},
+        {"subject": "David Luan", "relation": "WORKED_AT", "object": "Amazon", "extraction_confidence": 0.90}
+      ]
+    },
+    "d06": {
+      "relations": [
+        {"subject": "Noam Shazeer", "relation": "WORKED_AT", "object": "Google", "extraction_confidence": 0.88},
+        {"subject": "Noam Shazeer", "relation": "LEFT", "object": "Google", "extraction_confidence": 0.88},
+        {"subject": "Noam Shazeer", "relation": "FOUNDED", "object": "Character.AI", "extraction_confidence": 0.93},
+        {"subject": "Noam Shazeer", "relation": "LEADS", "object": "Character.AI", "extraction_confidence": 0.90}
+      ]
+    },
+    "d07": {
+      "relations": [
+        {"subject": "Google", "relation": "ACQUIRED", "object": "Character.AI", "extraction_confidence": 0.92},
+        {"subject": "Noam Shazeer", "relation": "WORKED_AT", "object": "Google", "extraction_confidence": 0.90}
+      ]
+    },
+    "d08": {
+      "relations": [
+        {"subject": "Mustafa Suleyman", "relation": "FOUNDED", "object": "Inflection AI", "extraction_confidence": 0.92},
+        {"subject": "Karen Simonyan", "relation": "FOUNDED", "object": "Inflection AI", "extraction_confidence": 0.92},
+        {"subject": "Microsoft", "relation": "ACQUIRED", "object": "Inflection AI", "extraction_confidence": 0.93},
+        {"subject": "Mustafa Suleyman", "relation": "LEADS", "object": "Microsoft", "extraction_confidence": 0.90},
+        {"subject": "Karen Simonyan", "relation": "WORKED_AT", "object": "Microsoft", "extraction_confidence": 0.88}
+      ]
+    },
+    "d09": {
+      "relations": [
+        {"subject": "Arthur Mensch", "relation": "WORKED_AT", "object": "Meta AI", "extraction_confidence": 0.88},
+        {"subject": "Guillaume Lample", "relation": "WORKED_AT", "object": "Meta AI", "extraction_confidence": 0.88},
+        {"subject": "Timothee Lacroix", "relation": "WORKED_AT", "object": "Meta AI", "extraction_confidence": 0.88},
+        {"subject": "Arthur Mensch", "relation": "FOUNDED", "object": "Mistral AI", "extraction_confidence": 0.92},
+        {"subject": "Guillaume Lample", "relation": "FOUNDED", "object": "Mistral AI", "extraction_confidence": 0.92},
+        {"subject": "Timothee Lacroix", "relation": "FOUNDED", "object": "Mistral AI", "extraction_confidence": 0.92},
+        {"subject": "Arthur Mensch", "relation": "LEADS", "object": "Mistral AI", "extraction_confidence": 0.90}
+      ]
+    },
+    "d10": {
+      "relations": [
+        {"subject": "Microsoft", "relation": "INVESTED_IN", "object": "$10 Billion", "extraction_confidence": 0.88},
+        {"subject": "Microsoft", "relation": "INVESTED_IN", "object": "OpenAI", "extraction_confidence": 0.89}
+      ]
+    },
+    "d11": {
+      "relations": [
+        {"subject": "Microsoft", "relation": "INVESTED_IN", "object": "$13 Billion", "extraction_confidence": 0.88},
+        {"subject": "Microsoft", "relation": "INVESTED_IN", "object": "OpenAI", "extraction_confidence": 0.89}
+      ]
+    },
+    "d12": {
+      "relations": [
+        {"subject": "OpenAI", "relation": "RELEASED", "object": "GPT-4o", "extraction_confidence": 0.93},
+        {"subject": "Sam Altman", "relation": "LEADS", "object": "OpenAI", "extraction_confidence": 0.92}
+      ]
+    },
+    "d13": {
+      "relations": [
+        {"subject": "Anthropic", "relation": "RELEASED", "object": "Claude 3", "extraction_confidence": 0.93}
+      ]
+    },
+    "d14": {
+      "relations": [
+        {"subject": "Amazon", "relation": "INVESTED_IN", "object": "$8 Billion", "extraction_confidence": 0.88},
+        {"subject": "Amazon", "relation": "INVESTED_IN", "object": "Anthropic", "extraction_confidence": 0.89},
+        {"subject": "Google", "relation": "INVESTED_IN", "object": "$3 Billion", "extraction_confidence": 0.88},
+        {"subject": "Google", "relation": "INVESTED_IN", "object": "Anthropic", "extraction_confidence": 0.89}
+      ]
+    },
+    "d15": {
+      "relations": [
+        {"subject": "Elon Musk", "relation": "FOUNDED", "object": "xAI", "extraction_confidence": 0.92},
+        {"subject": "xAI", "relation": "RELEASED", "object": "Grok", "extraction_confidence": 0.91}
+      ]
+    },
+    "d16": {
+      "relations": [
+        {"subject": "Aravind Srinivas", "relation": "WORKED_AT", "object": "OpenAI", "extraction_confidence": 0.87},
+        {"subject": "Aravind Srinivas", "relation": "FOUNDED", "object": "Perplexity AI", "extraction_confidence": 0.92},
+        {"subject": "Aravind Srinivas", "relation": "LEADS", "object": "Perplexity AI", "extraction_confidence": 0.90}
+      ]
+    },
+    "d17": {
+      "relations": [
+        {"subject": "Ilya Sutskever", "relation": "WORKED_AT", "object": "OpenAI", "extraction_confidence": 0.88},
+        {"subject": "Ilya Sutskever", "relation": "LEFT", "object": "OpenAI", "extraction_confidence": 0.90},
+        {"subject": "Ilya Sutskever", "relation": "FOUNDED", "object": "Safe Superintelligence", "extraction_confidence": 0.93},
+        {"subject": "Ilya Sutskever", "relation": "LEADS", "object": "Safe Superintelligence", "extraction_confidence": 0.92},
+        {"subject": "Safe Superintelligence", "relation": "VALUED_AT", "object": "$20 Billion", "extraction_confidence": 0.85}
+      ]
+    },
+    "d18": {
+      "relations": [
+        {"subject": "Thinking Machines Lab", "relation": "RAISED", "object": "$2 Billion", "extraction_confidence": 0.88},
+        {"subject": "Thinking Machines Lab", "relation": "VALUED_AT", "object": "$12 Billion", "extraction_confidence": 0.88},
+        {"subject": "Mira Murati", "relation": "FOUNDED", "object": "Thinking Machines Lab", "extraction_confidence": 0.92}
+      ]
+    },
+    "d19": {
+      "relations": [
+        {"subject": "Ilya Sutskever", "relation": "FOUNDED", "object": "Safe Superintelligence", "extraction_confidence": 0.92},
+        {"subject": "Ilya Sutskever", "relation": "LEADS", "object": "Safe Superintelligence", "extraction_confidence": 0.90},
+        {"subject": "Safe Superintelligence", "relation": "VALUED_AT", "object": "$20 Billion", "extraction_confidence": 0.85}
+      ]
+    },
+    "d20": {
+      "relations": [
+        {"subject": "Dario Amodei", "relation": "FOUNDED", "object": "Anthropic", "extraction_confidence": 0.90},
+        {"subject": "Daniela Amodei", "relation": "FOUNDED", "object": "Anthropic", "extraction_confidence": 0.90},
+        {"subject": "Mira Murati", "relation": "FOUNDED", "object": "Thinking Machines Lab", "extraction_confidence": 0.90},
+        {"subject": "David Luan", "relation": "FOUNDED", "object": "Adept AI", "extraction_confidence": 0.90},
+        {"subject": "Aravind Srinivas", "relation": "FOUNDED", "object": "Perplexity AI", "extraction_confidence": 0.90},
+        {"subject": "Ilya Sutskever", "relation": "FOUNDED", "object": "Safe Superintelligence", "extraction_confidence": 0.90},
+        {"subject": "Arthur Mensch", "relation": "FOUNDED", "object": "Mistral AI", "extraction_confidence": 0.90}
+      ]
+    }
+  },
+  "fixture": {
+    "f21": {
+      "relations": [
+        {"subject": "Safe Superintelligence", "relation": "RAISED", "object": "$1 Billion", "extraction_confidence": 0.90},
+        {"subject": "Safe Superintelligence", "relation": "VALUED_AT", "object": "$32 Billion", "extraction_confidence": 0.90},
+        {"subject": "Ilya Sutskever", "relation": "FOUNDED", "object": "Safe Superintelligence", "extraction_confidence": 0.92},
+        {"subject": "Ilya Sutskever", "relation": "LEADS", "object": "Safe Superintelligence", "extraction_confidence": 0.90},
+        {"subject": "Daniel Gross", "relation": "LEFT", "object": "Apple", "extraction_confidence": 0.85},
+        {"subject": "Daniel Gross", "relation": "WORKED_AT", "object": "Safe Superintelligence", "extraction_confidence": 0.88},
+        {"subject": "Daniel Levy", "relation": "LEFT", "object": "OpenAI", "extraction_confidence": 0.85},
+        {"subject": "Daniel Levy", "relation": "WORKED_AT", "object": "Safe Superintelligence", "extraction_confidence": 0.88}
+      ]
+    }
+  }
+}

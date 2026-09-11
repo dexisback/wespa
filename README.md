@@ -258,6 +258,10 @@ pip install -r requirements.txt
 # 4. build the memory from the 20-document seed corpus (idempotent, safe to re-run)
 python scripts/build_memory.py
 
+#    …or, offline (no Groq key / free-tier rate limits): the deterministic bootstrap
+#    loads hand-curated extraction results directly into all three stores
+python scripts/bootstrap_memory.py
+
 # 5. run API + UI
 uvicorn app.main:fastapi_app --host 0.0.0.0 --port 8000
 # → http://localhost:8000
@@ -269,6 +273,21 @@ python scripts/run_evaluation.py
 Other scripts: `scripts/seed_data.py` (corpus stats / RSS fetch), `scripts/run_query.py "question" --mode hybrid` (CLI).
 
 Health check: `curl localhost:8000/health` → `{"all_ready": true, ...}`.
+
+### Offline / rate-limited demo mode (`SKIP_LLM`)
+
+The Groq free tier is token-capped (~8k tokens/min), so under load the LLM can become
+unavailable mid-demo. The engine degrades gracefully instead of failing:
+
+- **`SKIP_LLM=true` in `.env`** skips every Groq call: queries use deterministic
+  capitalized-ngram entity seeding and a templated, fully-cited answer built from the
+  retrieved facts/passages. Every fact keeps its source, confidence, and temporal state.
+- **Ingestion without the LLM** — `extract_entities`/`extract_relations` fall back to
+  regex extraction (capitalized runs, `$N Billion` amounts, sentence-pattern relations),
+  so `POST /ingest` still works end-to-end: dedup, corroboration, supersede and conflicts
+  all fire (verified live).
+- With `SKIP_LLM=false` (default) the full LLM path returns, and any LLM failure still
+  falls back to the same deterministic paths — the demo cannot dead-end.
 
 ## Repository structure
 
@@ -303,7 +322,16 @@ ai-knowledge-memory-engine/
 ## Evaluation
 
 `POST /eval/run` (or `python scripts/run_evaluation.py`) measures on the curated question set —
-numbers only, nothing hardcoded:
+numbers only, nothing hardcoded. Latest full-suite results (10 questions, 4 multi-hop,
+retrieval measured directly against the graph + vector stores):
+
+| Metric | vector | graph | hybrid |
+|---|---|---|---|
+| Hit@5 | **1.00** | **0.90** | **0.90** |
+| Recall@5 | 0.95 | 0.70 | 0.70 |
+
+Multi-hop accuracy **1.00** · temporal correctness **PASS** · confidence weighting **PASS** ·
+avg end-to-end latency **~210 ms** (offline mode; LLM mode adds generation latency).
 
 | Metric | Meaning |
 |---|---|

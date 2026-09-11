@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 import uuid
 from datetime import datetime, timezone
 
-from ..config import TOP_K_PASSAGES
+from ..config import SKIP_LLM, TOP_K_PASSAGES
 from ..db.postgres import get_db
 from ..extraction.schemas import Fact, QueryResult, SourceCard
 from ..graph.graph_retriever import retrieve_facts
@@ -23,7 +24,9 @@ QUERY_ENTITY_TMPL = (
 
 def extract_query_entities(question: str) -> list[str]:
     """Small LLM call to find which entities to seed the graph traversal with.
-    Falls back to capitalized n-grams when the LLM is unavailable."""
+    Falls back to capitalized n-grams when the LLM is unavailable or SKIP_LLM is set."""
+    if SKIP_LLM:
+        return _fallback_entities(question)
     from ..llm import LLMError, chat_json
 
     try:
@@ -79,9 +82,11 @@ def retrieve(question: str, mode: str) -> dict:
         bundle["matched"] = result["matched"]
         bundle["chain_fact_ids"] = result.get("chain_fact_ids", [])
         bundle["used_graph"] = True
+        if bundle["facts"]:
+            bundle["facts"] = _rank_facts(bundle["facts"], question, bundle["chain_fact_ids"])
 
     if mode == "hybrid":
-        bundle["facts"], bundle["passages"] = _merge_rank(bundle["facts"], bundle["passages"], bundle)
+        bundle["facts"], bundle["passages"] = _merge_rank(bundle["facts"], bundle["passages"], question, bundle["chain_fact_ids"])
     return bundle
 
 
@@ -94,16 +99,74 @@ def _question_overlap(fact: Fact, question: str) -> int:
     return n
 
 
-def _merge_rank(facts: list[Fact], passages, bundle=None) -> tuple[list[Fact], list]:
-    """Rank merged evidence: traversal-chain facts first, then active + confidence."""
-    chain_ids = set((bundle or {}).get("chain_fact_ids", []))
-    question = (bundle or {}).get("question", "")
-    facts = sorted(
+# question wording -> relation labels the question is asking about
+_RELATION_HINTS: list[tuple[str, frozenset[str]]] = [
+    (r"\bfound(?:ed)?\b|\bco-?founded\b|\bstarted\b|\bset up\b", frozenset({"FOUNDED"})),
+    (r"\bacquir(?:e|ed|es|ing)\b|\bbought\b|\bmerged\b", frozenset({"ACQUIRED"})),
+    (r"\binvest(?:e|ed|ing|ment)s?\b|\bbacked\b|\bfunded\b", frozenset({"INVESTED_IN"})),
+    (r"\brais(?:e|ed|es|ing)\b|\bfunding\b|\braise\b", frozenset({"RAISED"})),
+    (r"\bvalu(?:e|ed|es|ation)\b", frozenset({"VALUED_AT"})),
+    (r"\breleas(?:e|ed|es|ing)\b|\blaunche?d?\b|\bshipped\b|\bdebut\b", frozenset({"RELEASED"})),
+    (r"\bjoined\b|\bworks?\b|\bworked\b|\bhiring\b|\bhired\b|\bre-?hiring\b", frozenset({"WORKED_AT", "ACQUIRED"})),
+    (r"\bleads?\b|\bCEO\b|\bruns?\b|\bhead of\b|\bchief\b", frozenset({"LEADS"})),
+]
+
+
+def _relation_intent(fact: Fact, question: str) -> int:
+    ql = question.lower()
+    for pattern, relations in _RELATION_HINTS:
+        if re.search(pattern, ql) and fact.relation in relations:
+            return 1
+    return 0
+
+
+_MONTH_NUMBERS = {
+    "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
+    "july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
+}
+
+
+def _temporal_window(question: str) -> tuple[str, str] | None:
+    """Parse a time anchor like 'April 2025' or 'in 2025' into a YYYY-MM range."""
+    ql = question.lower()
+    for name, num in _MONTH_NUMBERS.items():
+        m = re.search(rf"\b{name}\s+(\d{{4}})\b", ql)
+        if m:
+            return (f"{m.group(1)}-{num:02d}", f"{m.group(1)}-{num:02d}")
+    m = re.search(r"\b(?:in|during)\s+(\d{4})\b", ql)
+    if m:
+        return (f"{m.group(1)}-01", f"{m.group(1)}-12")
+    return None
+
+
+def _fact_score(f: Fact, question: str, chain_ids: set[str], window) -> float:
+    score = f.confidence * 0.8
+    if f.active:
+        score += 1.0
+    if f.fact_id in chain_ids:
+        score += 0.7
+    score += 0.9 * _relation_intent(f, question)
+    score += 0.5 * _question_overlap(f, question)
+    if window and f.observed_at and window[0] <= str(f.observed_at)[:7] <= window[1]:
+        score += 0.9
+    score += 0.05 * getattr(f, "corroborations", 0)
+    return score
+
+
+def _rank_facts(facts: list[Fact], question: str, chain_ids: set[str]) -> list[Fact]:
+    """Shared ranking: weighted evidence score (active, chain, intent, overlap, time)."""
+    window = _temporal_window(question)
+    return sorted(
         facts,
-        key=lambda f: (not f.active, f.fact_id not in chain_ids, -_question_overlap(f, question), -f.confidence),
+        key=lambda f: -_fact_score(f, question, set(chain_ids or ()), window),
     )
+
+
+def _merge_rank(facts: list[Fact], passages, question: str, chain_ids: set[str] | None = None) -> tuple[list[Fact], list]:
+    """Rank merged evidence: facts re-ranked with the question, passages by similarity."""
+    ranked = _rank_facts(sorted(facts or [], key=lambda f: f.fact_id), question, chain_ids or set())
     passages = sorted(passages or [], key=lambda p: -(p.similarity or 0.0))
-    return facts[:16], passages[:TOP_K_PASSAGES]
+    return ranked[:16], passages[:TOP_K_PASSAGES]
 
 
 def source_cards(bundle: dict) -> list[SourceCard]:
