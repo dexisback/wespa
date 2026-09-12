@@ -94,6 +94,7 @@ class SourceCard(BaseModel):
     published_at: Optional[str] = None
     retrieved_at: Optional[str] = None
     confidence: Optional[float] = None
+    is_new: bool = False
 
 
 class ConfidenceBreakdown(BaseModel):
@@ -127,6 +128,12 @@ class QueryResult(BaseModel):
     graph_path: Optional[GraphPath] = None
     pipeline: list[PipelineStage] = Field(default_factory=list)
     memory_sufficient: bool = True
+    memory_reason: str = ""
+    evidence_count: int = 0
+    live_retrieval_used: bool = False
+    sources_fetched: list[dict] = Field(default_factory=list)
+    memory_updates: Optional[dict] = None
+    still_insufficient: bool = False
     live_fetch: Optional[dict] = None
     answer_dependencies: list[str] = Field(default_factory=list)
     as_of: Optional[str] = None

@@ -57,8 +57,8 @@
         <button data-mode="graph">Graph only</button>
         <button data-mode="vector">Vector only</button>
       </div>
-      <label class="opt" title="If memory can't answer, fetch new evidence from the web, ingest it, then answer from updated memory">
-        <input id="opt-live" type="checkbox"> <span>Fetch new evidence if memory is insufficient</span>
+      <label class="opt" title="If memory can't answer, fetch new evidence from the web, learn it into memory, then answer from the updated memory">
+        <input id="opt-live" type="checkbox" checked> <span>Fetch new evidence if memory is insufficient</span>
       </label>
       <label class="opt" title="Reconstruct memory as it was on this date — time travel">
         <span>as of</span> <input id="opt-asof" type="date">
@@ -79,6 +79,7 @@
       </div>
       <p id="answer" class="answer-text"></p>
       <div id="as-of-tag" class="as-of-tag hidden"></div>
+      <div id="memory-updated" class="memory-updated hidden"></div>
       <div id="pipeline" class="pipeline hidden"></div>
       <div id="conflicts" class="conflicts hidden"></div>
       <div id="why-panel" class="why-panel hidden"></div>

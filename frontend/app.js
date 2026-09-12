@@ -170,6 +170,21 @@ function renderResult(data) {
     asofTag.innerHTML = `⏱ Reconstruction of memory <b>as of ${esc(data.as_of.slice(0, 10))}</b> — facts valid on that date only.`;
   } else asofTag.classList.add("hidden");
 
+  const mu = $("memory-updated");
+  if (data.live_retrieval_used && data.memory_updates) {
+    const u = data.memory_updates;
+    const bits = [`+${u.documents_added} source${u.documents_added === 1 ? "" : "s"}`, `+${u.entities_added} entities`, `+${u.relationships_added} facts`];
+    if (u.facts_superseded) bits.push(`${u.facts_superseded} superseded`);
+    if (u.facts_corroborated) bits.push(`${u.facts_corroborated} corroborated`);
+    if (u.conflicts_flagged) bits.push(`${u.conflicts_flagged} conflicted`);
+    if (u.documents_skipped_duplicate) bits.push(`${u.documents_skipped_duplicate} duplicate skipped`);
+    mu.classList.remove("hidden");
+    mu.innerHTML = `
+      <div class="mu-title">⬆ MEMORY UPDATED — first answer: the system learned, now it knows</div>
+      <div class="mu-bits">${bits.map((b) => `<span>${esc(b)}</span>`).join("")}</div>
+      <div class="mu-grounded">✓ Answer grounded in updated memory${data.still_insufficient ? " · evidence still thin — treat with care" : ""}</div>`;
+  } else mu.classList.add("hidden");
+
   const pl = $("pipeline");
   const stages = data.pipeline || [];
   if (stages.length) {
@@ -239,7 +254,7 @@ function renderSources(data) {
     }
     const date = c.published_at ? fmtDate(c.published_at) : (c.retrieved_at ? fmtDate(c.retrieved_at) : "");
     el.innerHTML = `
-      <div class="name">${esc(c.source_name)}</div>
+      <div class="name">${esc(c.source_name)}${c.is_new ? '<span class="new-badge">NEW</span>' : ""}</div>
       ${c.title ? `<div class="title">${esc(c.title)}</div>` : ""}
       <div class="meta"><span>${date ? "Retrieved " + date : ""}</span><span>${c.url ? "article ↗" : ""}</span></div>
       ${bar}`;

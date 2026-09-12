@@ -1,6 +1,6 @@
 {
   "status": "ok",
-  "generated_at": "2026-09-12T01:21:22.898481+00:00",
+  "generated_at": "2026-09-12T01:59:07.465221+00:00",
   "questions": 10,
   "multi_hop_questions": 4,
   "hit_at_5": {
@@ -16,7 +16,7 @@
   "hit_at_5_overall": 0.9,
   "recall_at_5_overall": 0.683,
   "multi_hop_accuracy": 1.0,
-  "avg_latency_ms": 13079.5,
+  "avg_latency_ms": 13096.8,
   "temporal_correctness": {
     "result": "PASS",
     "detail": "3 versions retained (2 historical, 1 active)"
@@ -27,11 +27,11 @@
   },
   "stale_answer_detection": {
     "result": "PASS",
-    "detail": "answer q_273f6e8c8f cites the historical fact (fact_illion_20250520_88970) -> impact engine marks it 'POTENTIALLY STALE' with 2 stale dependency/dependencies"
+    "detail": "answer q_cab9c4eb1c cites the historical fact (fact_illion_20250520_18023) -> impact engine marks it 'POTENTIALLY STALE' with 2 stale dependency/dependencies"
   },
   "impact_analysis": {
     "result": "PASS",
-    "detail": "impact for fact_illion_20250520_88970: 2 previous answer(s) may be stale \u00b7 8 related fact(s) depend on this"
+    "detail": "impact for fact_illion_20250520_18023: 3 previous answer(s) may be stale \u00b7 8 related fact(s) depend on this"
   },
   "temporal_reconstruction": {
     "result": "PASS",
@@ -41,7 +41,7 @@
     {
       "id": "q01",
       "question": "Which companies did people who left OpenAI go on to found?",
-      "answer": "Former OpenAI staff have gone on to start several AI companies:\n\n* **Anthropic** \u2013 founded by the Amodei siblings, Daniela (who left OpenAI) and Dario (who also left) (TechCrunch).  \n* **Thinking Machines Lab** \u2013 founded by Mira\u202fMurati after she left OpenAI (MIT Technology Review; also reported by The Verge).  \n* **Perplexity\u202fAI** \u2013 founded by former OpenAI researcher Aravind\u202fSrinivas (MIT Technology Review; Wired).\n\nThese are the companies directly linked to people who have left OpenAI in the available evidence. (No reliable source links other leavers to additional startups.)",
+      "answer": "People who left OpenAI have gone on to start several AI\u2011focused firms:\n\n* Dario Amodei (who left OpenAI) co\u2011founded **Anthropic** with his sister Daniela\u202fAmodei (TechCrunch).  \n* Mira\u202fMurati (who left OpenAI) founded **Thinking Machines Lab** (MIT Technology Review; Bloomberg).  \n* Former OpenAI researcher Aravind\u202fSrinivas founded **Perplexity\u202fAI** (Wired; graph fact).  \n\nThese are the companies directly linked to former OpenAI staff in the available evidence.",
       "top_facts": [
         [
           "daniela amodei",
@@ -69,7 +69,7 @@
     {
       "id": "q02",
       "question": "Which company acquired the startup that David Luan founded after leaving OpenAI?",
-      "answer": "David\u202fLuan founded the startup Adept\u202fAI after leaving OpenAI, and Adept\u202fAI was later acquired by Amazon (Reuters). (Source: Reuters \u2013 Amazon\u202f\u2192\u202facquired\u202f\u2192\u202fAdept\u202fAI; TechCrunch \u2013 David\u202fLuan\u202f\u2192\u202ffounded\u202f\u2192\u202fAdept\u202fAI).",
+      "answer": "David\u202fLuan left OpenAI to co\u2011found the startup Adept\u202fAI, and Adept\u202fAI was later acquired by Amazon (Reuters). (Source: Reuters \u2013 Amazon\u202f\u2192\u202fACQUIRED\u202f\u2192\u202fAdept\u202fAI; TechCrunch \u2013 David\u202fLuan\u202f\u2192\u202fFOUNDED\u202f\u2192\u202fAdept\u202fAI).",
       "top_facts": [
         [
           "david luan",
@@ -92,7 +92,7 @@
     {
       "id": "q03",
       "question": "Which company did Microsoft effectively acquire, and who had founded that startup?",
-      "answer": "Microsoft effectively acquired **Inflection\u202fAI** (Bloomberg). The startup was founded by **Mustafa\u202fSuleyman** (and co\u2011founded with Karen\u202fSimonyan) in 2022 (Bloomberg). (Source: Bloomberg)",
+      "answer": "Microsoft effectively acquired **Inflection\u202fAI** (Bloomberg). The startup was founded by **Mustafa\u202fSuleyman** (and co\u2011founded with Karen\u202fSimonyan) in 2022 (Bloomberg).",
       "top_facts": [
         [
           "karen simonyan",
@@ -125,7 +125,7 @@
     {
       "id": "q04",
       "question": "How did Google end up re-hiring Noam Shazeer?",
-      "answer": "Google re\u2011hired Noam\u202fShazeer as part of its $2.7\u202fbillion deal to acquire Character.AI. The agreement licensed Character.AI\u2019s technology to Google, transferred its research team to DeepMind, and hired the startup\u2019s founders\u2014bringing Shazeer, the co\u2011author of the transformer architecture, back to Google to work on its Gemini model (The Information, 2025). He had left Google in 2021 to found Character.AI (Bloomberg, 2025).",
+      "answer": "Google re\u2011hired Noam\u202fShazeer when it struck a deal to acquire Character.AI.\u202fThe 2025 agreement let Google license Character.AI\u2019s technology and bring its founders onto Google\u2019s staff, so Shazeer\u2014who had left Google in 2021 to start Character.AI\u2014returned as part of the transaction and now works on Google\u2019s Gemini model efforts (Source: The Information).\u202fHis prior departure and founding of Character.AI are confirmed by Bloomberg (Source: Bloomberg).",
       "top_facts": [
         [
           "google",
@@ -153,7 +153,7 @@
     {
       "id": "q05",
       "question": "Who founded Anthropic?",
-      "answer": "Anthropic was founded by Dario\u202fAmodei together with his sister Daniela\u202fAmodei after they left OpenAI (MIT Technology Review; TechCrunch). Both sources describe the Amodei siblings as the company\u2019s co\u2011founders. (Source: MIT Technology Review; Source: TechCrunch)",
+      "answer": "Anthropic was founded by Dario\u202fAmodei, together with his sister Daniela\u202fAmodei, after they left OpenAI (MIT Technology Review; TechCrunch). Dario Amodei is also listed as the company\u2019s founder in the knowledge graph (MIT Technology Review, TechCrunch).",
       "top_facts": [
         [
           "anthropic",
@@ -181,7 +181,7 @@
     {
       "id": "q06",
       "question": "What did OpenAI release in April 2025?",
-      "answer": "In April\u202f2025 OpenAI released **GPT\u20114o**, its new flagship model that natively handles text, audio and vision in a single network (The Verge, 2025\u201104\u201110). The company said GPT\u20114o matches GPT\u20114\u202fTurbo on text while being faster, cheaper, and adds a real\u2011time voice mode that makes ChatGPT act more like an interruptible assistant. (Source: The Verge).",
+      "answer": "In April\u202f2025 OpenAI released **GPT\u20114o**, its new flagship model that natively handles text, audio and vision in a single network and adds a real\u2011time voice mode (The Verge, 2025\u201104\u201110). The company made GPT\u20114o available to all users, including the free tier, describing it as its \u201cfastest and most capable yet.\u201d (Source: The Verge).",
       "top_facts": [
         [
           "david luan",
@@ -242,7 +242,7 @@
     {
       "id": "q08",
       "question": "Who leads Mistral AI?",
-      "answer": "Arthur\u202fMensch leads Mistral\u202fAI, serving as its chief executive. (Source: MIT Technology Review \u2013 both the knowledge\u2011graph fact \u201cArthur Mensch\u202f\u2013[LEADS]\u2192\u202fMistral\u202fAI\u201d and the passage stating \u201cMensch leads Mistral\u202fAI as chief executive.\u201d)",
+      "answer": "Arthur\u202fMensch leads Mistral\u202fAI, serving as its chief executive (MIT Technology Review).",
       "top_facts": [
         [
           "arthur mensch",
@@ -265,7 +265,7 @@
     {
       "id": "q09",
       "question": "What is Safe Superintelligence valued at after its June raise?",
-      "answer": "Safe Superintelligence was valued at **$32\u202fbillion** after its June funding round (a $1\u202fbillion raise) (Source: Reuters).",
+      "answer": "Safe Superintelligence was valued at **$32\u202fbillion** after its June funding round (a $1\u202fbillion raise) (Source: Reuters, 2025\u201106\u201112).",
       "top_facts": [
         [
           "ilya sutskever",
@@ -293,7 +293,7 @@
     {
       "id": "q10",
       "question": "Which lab released Claude 3?",
-      "answer": "Anthropic, the AI research lab founded by former OpenAI researchers, released Claude\u202f3 (Source: Ars Technica).",
+      "answer": "Anthropic, the AI research lab founded by former OpenAI researchers, released Claude\u202f3 (Source: Ars Technica; Graph fact\u202fAnthropic\u202f\u2192\u202fRELEASED\u202f\u2192\u202fClaude\u202f3).",
       "top_facts": [
         [
           "anthropic",

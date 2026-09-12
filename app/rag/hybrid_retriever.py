@@ -90,34 +90,65 @@ def retrieve(question: str, mode: str, as_of: str | None = None) -> dict:
     return bundle
 
 
-_RELEVANCE_STOP = {"what", "which", "who", "when", "where", "how", "about", "does", "did", "didnt",
-                   "september", "october", "august", "january", "february", "march", "april", "may",
-                   "june", "july", "november", "december", "there", "their", "with", "that", "this",
-                   "from", "have", "after", "before", "people", "company"}
+_RELEVANCE_STOP = {
+    # question words
+    "what", "which", "who", "when", "where", "how", "about", "does", "did", "didnt", "give",
+    "show", "tell", "tellall", "list", "please", "there", "their", "with", "that", "this",
+    "from", "have", "after", "before", "people", "company", "companies", "they", "them",
+    "many", "much", "some", "into", "onto", "were", "was", "are", "been", "being", "also",
+    "the", "and", "for", "his", "her", "its", "him", "she", "our", "own", "out", "off",
+    "per", "via", "can", "will", "why", "yet", "nor", "but", "one", "two", "not", "get",
+    "has", "had", "over", "under", "more", "most", "very", "than", "then", "them", "they",
+    # months / time
+    "september", "october", "august", "january", "february", "march", "april", "may",
+    "june", "july", "november", "december", "current", "currently", "latest", "recent",
+    "today", "yesterday", "year", "month",
+    # generic category words — they appear in off-topic evidence too
+    "model", "models", "lineup", "listings", "full", "complete", "entire", "all", "every",
+    "top", "best", "popular", "main", "major", "new", "brand", "brands", "range", "series",
+    "price", "prices", "sale", "sell", "market", "segment", "type", "types", "kind", "kinds",
+    "name", "names", "known", "know", "info", "information", "details", "detail",
+    "car", "cars", "motor", "motors", "vehicle", "vehicles", "truck", "trucks",
+}
 
 
-def _topical_relevance(question: str, facts: list[Fact], passages: list) -> float:
-    """Share of the question's content words that appear in the retrieved evidence.
-    Low relevance means memory contains related-but-off-topic material."""
+def _salient_tokens(question: str) -> list[str]:
+    """Content words that identify the requested topic/entity — category words
+    ('model', 'lineup', 'cars') are excluded because they appear in off-topic
+    evidence (e.g. a Maruti passage also contains 'model')."""
     words = [w.lower().strip(".,?!'\"") for w in question.split()]
-    words = [w for w in words if len(w) >= 4 and w not in _RELEVANCE_STOP]
-    if not words:
-        return 1.0
-    hay = " ".join(
-        [f"{f.subject_name} {f.relation} {f.object_name}" for f in facts]
-        + [p.text for p in passages]
-    ).lower()
-    hits = sum(1 for w in words if w in hay)
-    return hits / len(words)
+    return [w for w in words if len(w) >= 3 and w not in _RELEVANCE_STOP]
 
 
-def _memory_sufficient(facts: list[Fact], passages: list, conf: float, question: str = "") -> bool:
-    """Memory-first check: is the persistent memory strong enough to answer?
-    Needs 2+ evidence items, at least medium confidence, AND topical relevance —
-    memory containing adjacent material is not the same as containing the answer."""
-    if (len(facts) + len(passages)) < 2 or conf < 0.45:
-        return False
-    return _topical_relevance(question, facts, passages) >= 0.35
+def _token_hit(token: str, hay: str) -> bool:
+    # suffix-tolerant word-boundary match: "found" hits "founded", "raise" hits "raised"
+    return re.search(rf"\b{re.escape(token)}(?:s|es|ed|d|ing)?\b", hay) is not None
+
+
+def _relevance_report(question: str, facts: list[Fact], passages: list) -> dict:
+    """Per-item topical relevance: does the evidence actually mention the
+    requested entities/topics? Word-boundary matching, no fuzzy substring hits."""
+    salient = _salient_tokens(question)
+    fact_texts = [f"{f.subject_name} {f.relation.replace('_', ' ')} {f.object_name}" for f in facts]
+    passage_texts = [p.text for p in passages]
+    hay = " ".join(fact_texts + passage_texts).lower()
+
+    hits = [t for t in salient if _token_hit(t, hay)]
+    relevant_facts = sum(
+        1 for text in fact_texts if any(_token_hit(t, text.lower()) for t in salient)
+    )
+    relevant_passages = sum(
+        1 for text in passage_texts if any(_token_hit(t, text.lower()) for t in salient)
+    )
+    relevance = (len(hits) / len(salient)) if salient else 1.0
+    return {
+        "salient": salient,
+        "hits": hits,
+        "relevance": relevance,
+        "relevant_facts": relevant_facts,
+        "relevant_passages": relevant_passages,
+        "irrelevant_passages": len(passage_texts) - relevant_passages,
+    }
 
 
 def _confidence_breakdown(facts: list[Fact], passages: list, conflicts: int) -> dict:
@@ -250,52 +281,150 @@ def source_cards(bundle: dict) -> list[SourceCard]:
     return list(cards.values())
 
 
+def _sufficiency(facts: list[Fact], passages: list, conf: float, question: str = "") -> dict:
+    """Deterministic memory-sufficiency verdict with a human-readable reason.
+
+    Distinguishes RETRIEVED SOMETHING from RETRIEVED RELEVANT EVIDENCE:
+    evidence must actually mention the requested entities/topics — passages
+    about Maruti Suzuki do not answer a question about Kia Motors."""
+    rep = _relevance_report(question, facts, passages)
+    evidence_count = len(facts) + len(passages)
+    conf = round(conf, 3)
+    base = {"evidence_count": evidence_count, "confidence": round(conf, 3), **rep}
+
+    if evidence_count == 0:
+        return {"sufficient": False, "reason": "no evidence in memory for this question", **base}
+    if rep["salient"] and not rep["hits"]:
+        topics = ", ".join(rep["salient"][:4])
+        return {
+            "sufficient": False,
+            "reason": (
+                f"retrieved evidence does not mention the requested topic ({topics}) — "
+                f"{rep['relevant_facts']} relevant graph facts, {rep['relevant_passages']} relevant "
+                f"of {evidence_count} evidence item(s)"
+            ),
+            **base,
+        }
+    if evidence_count < 2:
+        # a single precise, on-topic fact can be enough (e.g. "what is X valued at?");
+        # a single weak/off-topic item is not
+        if conf >= 0.6 and rep["relevance"] >= 0.5:
+            return {
+                "sufficient": True,
+                "reason": f"{rep['relevant_facts']} relevant graph facts and {rep['relevant_passages']} relevant passages cover the question (confidence {conf:.2f})",
+                **base,
+            }
+        return {"sufficient": False, "reason": f"only {evidence_count} evidence item(s) in memory — too thin to answer reliably", **base}
+    if conf < 0.45:
+        return {"sufficient": False, "reason": f"memory evidence is low-confidence ({conf:.2f})", **base}
+    if rep["salient"] and rep["relevance"] < 0.35:
+        return {
+            "sufficient": False,
+            "reason": (
+                f"memory contains related material, but not enough about this topic "
+                f"(topical relevance {rep['relevance']:.2f}; {rep['relevant_facts']} relevant graph facts, "
+                f"{rep['relevant_passages']} relevant passages)"
+            ),
+            **base,
+        }
+    return {
+        "sufficient": True,
+        "reason": (
+            f"{rep['relevant_facts']} relevant graph facts and {rep['relevant_passages']} relevant passages "
+            f"cover the question (confidence {conf:.2f})"
+        ),
+        **base,
+    }
+
+
 def answer_question(question: str, mode: str = "hybrid", allow_live: bool = False, as_of: str | None = None) -> QueryResult:
     """Full query operation, timed end-to-end; logs to PostgreSQL.
 
     Memory-first flow: search persistent memory; if the evidence is insufficient
-    AND the caller allows it, fetch live evidence from the web, ingest it into
-    memory, and answer from the updated memory."""
+    AND the caller allows it, fetch live evidence from the web, run it through
+    the standard ingestion pipeline (dedup, temporal versioning, provenance),
+    then re-run retrieval and answer from the updated memory."""
     from ..extraction.schemas import ConfidenceBreakdown, PipelineStage
 
     started = time.perf_counter()
     query_id = f"q_{uuid.uuid4().hex[:10]}"
     pipeline: list[PipelineStage] = []
 
-    bundle = retrieve(question, mode, as_of=as_of)
-    bundle["question"] = question
+    def _re_retrieve():
+        b = retrieve(question, mode, as_of=as_of)
+        b["question"] = question
+        return b
+
+    bundle = _re_retrieve()
     if as_of:
         pipeline.append(PipelineStage(name="Time travel", detail=f"Memory as of {as_of[:10]}"))
-    if bundle["facts"] or bundle["passages"]:
-        pipeline.append(PipelineStage(name="Memory found", detail=f"{len(bundle['facts'])} graph facts · {len(bundle['passages'])} passages"))
 
     facts = bundle["facts"]
     passages = bundle["passages"]
     conf_est, _ = answer_confidence(facts, passages, conflicts=0)
-    sufficient = _memory_sufficient(facts, passages, conf_est, question)
+    verdict = _sufficiency(facts, passages, conf_est, question)
+    sufficient = verdict["sufficient"]
+    if sufficient:
+        pipeline.append(PipelineStage(name="Memory found", detail=verdict["reason"]))
+    elif bundle["facts"] or bundle["passages"]:
+        # retrieved something, but it is not relevant enough to answer — say exactly that
+        pipeline.append(
+            PipelineStage(
+                name="Memory insufficient",
+                detail=(
+                    f"{verdict['relevant_facts']} relevant graph facts · "
+                    f"{verdict['relevant_passages']} relevant / {verdict['irrelevant_passages']} "
+                    f"low-relevance passages"
+                ),
+            )
+        )
+    else:
+        pipeline.append(PipelineStage(name="Checking memory", detail="no matching evidence"))
 
     live_fetch: dict | None = None
+    live_retrieval_used = False
+    still_insufficient = False
+
     if not sufficient and allow_live:
-        pipeline.append(PipelineStage(name="Memory insufficient", detail="Not enough reliable evidence in persistent memory"))
+        if bundle["facts"] or bundle["passages"]:
+            pipeline.append(PipelineStage(name="Fetching new evidence", detail=verdict["reason"]))
+        else:
+            pipeline.append(PipelineStage(name="Memory insufficient", detail=verdict["reason"]))
         try:
             from ..ingestion.web_search import live_retrieval
 
             live_fetch = live_retrieval(question)
         except Exception as e:
             log.warning("live retrieval failed: %s", e)
-            live_fetch = {"ok": False, "error": str(e)}
+            live_fetch = {"ok": False, "error": f"live retrieval failed: {e}"}
+
         if live_fetch and live_fetch.get("ok"):
+            live_retrieval_used = True
             pipeline.append(
                 PipelineStage(
                     name="Memory updated",
-                    detail=f"+{live_fetch.get('documents_added', 0)} source(s), +{live_fetch.get('relationships_added', 0)} relationships",
+                    detail=(
+                        f"+{live_fetch.get('documents_added', 0)} source(s), "
+                        f"+{live_fetch.get('entities_added', 0)} entities, "
+                        f"+{live_fetch.get('relationships_added', 0)} relationships, "
+                        f"{live_fetch.get('facts_superseded', 0)} superseded, "
+                        f"{live_fetch.get('facts_corroborated', 0)} corroborated"
+                    ),
                 )
             )
-            bundle = retrieve(question, mode, as_of=as_of)
-            bundle["question"] = question
+            bundle = _re_retrieve()
             facts, passages = bundle["facts"], bundle["passages"]
+            conf_est, _ = answer_confidence(facts, passages, conflicts=0)
+            verdict2 = _sufficiency(facts, passages, conf_est, question)
+            pipeline.append(PipelineStage(name="Re-checking memory", detail=verdict2["reason"]))
+            if not verdict2["sufficient"]:
+                still_insufficient = True
+                pipeline.append(PipelineStage(name="Evidence still insufficient", detail="new sources were not enough to answer confidently"))
+        elif live_fetch and live_fetch.get("ingested_but_empty"):
+            live_retrieval_used = True
+            pipeline.append(PipelineStage(name="Live fetch found nothing useful", detail=str(live_fetch.get("error", ""))))
         else:
-            pipeline.append(PipelineStage(name="Live fetch unavailable", detail=str((live_fetch or {}).get("error", "no results"))))
+            pipeline.append(PipelineStage(name="Couldn't fetch new evidence", detail=str((live_fetch or {}).get("error", "no results"))))
 
     if facts or passages:
         pipeline.append(PipelineStage(name="Merging evidence", detail=f"{len(facts)} facts · {len(passages)} passages"))
@@ -304,8 +433,19 @@ def answer_question(question: str, mode: str = "hybrid", allow_live: bool = Fals
     if conflicts:
         confidence = round(confidence * 0.8, 3)
         conf_label = label(confidence)
+
     if not sufficient and allow_live:
-        pipeline.append(PipelineStage(name="Answer grounded in updated memory", detail=f"confidence {confidence} ({conf_label})"))
+        if live_retrieval_used:
+            pipeline.append(PipelineStage(name="Answer grounded in updated memory", detail=f"confidence {confidence} ({conf_label})"))
+            if still_insufficient:
+                answer = "I found new sources and added them to memory, but they still weren't sufficient to answer confidently.\n\n" + answer
+        elif live_fetch and live_fetch.get("ok"):
+            pass
+        else:
+            # fetch failed or found nothing usable — say so explicitly, don't pretend
+            answer = "I couldn't fetch new evidence right now. " + answer
+            confidence = round(min(confidence, 0.25), 3)
+            conf_label = label(confidence)
 
     sources: list[str] = []
     src_names: dict[str, str] = {}
@@ -317,6 +457,15 @@ def answer_question(question: str, mode: str = "hybrid", allow_live: bool = Fals
         }
     except Exception:
         pass
+    fetched_urls = {
+        (s.get("url") or "")
+        for s in ((live_fetch or {}).get("fetched_sources") or [])
+        if isinstance(s, dict)
+    }
+    cards = source_cards(bundle)
+    for c in cards:
+        if c.url and c.url in fetched_urls:
+            c.is_new = True
     for f in facts:
         fallback = f.source_id.replace("src_", "").replace("_", " ").title()
         f.source_name = f.source_name or src_names.get(f.source_id, "").replace("_", " ") or fallback
@@ -328,13 +477,24 @@ def answer_question(question: str, mode: str = "hybrid", allow_live: bool = Fals
 
     latency_ms = round((time.perf_counter() - started) * 1000, 1)
     dependencies = [f.fact_id for f in facts[:8]]
+    memory_updates = None
+    if live_retrieval_used and live_fetch:
+        memory_updates = {
+            "documents_added": live_fetch.get("documents_added", 0),
+            "entities_added": live_fetch.get("entities_added", 0),
+            "relationships_added": live_fetch.get("relationships_added", 0),
+            "facts_superseded": live_fetch.get("facts_superseded", 0),
+            "facts_corroborated": live_fetch.get("facts_corroborated", 0),
+            "conflicts_flagged": live_fetch.get("conflicts_flagged", 0),
+            "documents_skipped_duplicate": live_fetch.get("documents_skipped_duplicate", 0),
+        }
     result = QueryResult(
         query_id=query_id,
         answer=answer,
         facts=facts,
         passages=passages,
         sources=sources,
-        source_cards=source_cards(bundle),
+        source_cards=cards,
         confidence=confidence,
         confidence_label=conf_label,
         confidence_breakdown=ConfidenceBreakdown(**_confidence_breakdown(facts, passages, len(conflicts))),
@@ -344,7 +504,13 @@ def answer_question(question: str, mode: str = "hybrid", allow_live: bool = Fals
         latency_ms=latency_ms,
         graph_path=bundle["graph_path"],
         pipeline=pipeline,
-        memory_sufficient=sufficient,
+        memory_sufficient=verdict2["sufficient"] if live_retrieval_used and allow_live and not sufficient else sufficient,
+        memory_reason=verdict2["reason"] if live_retrieval_used and allow_live and not sufficient else verdict["reason"],
+        evidence_count=len(facts) + len(passages),
+        live_retrieval_used=live_retrieval_used,
+        sources_fetched=(live_fetch or {}).get("fetched_sources") or [],
+        memory_updates=memory_updates,
+        still_insufficient=still_insufficient,
         live_fetch=live_fetch,
         answer_dependencies=dependencies,
         as_of=as_of,
