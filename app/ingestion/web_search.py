@@ -133,7 +133,7 @@ def live_retrieval(question: str, max_docs: int = 3) -> dict:
     """Controlled memory-first fallback: search the web, ingest what we find,
     return an IngestionSummary-shaped dict so the caller can show what changed."""
     t0 = time.time()
-    results = search_web(question, max_results=max_docs + 1)
+    results = search_web(question, max_results=max_docs)
 
     docs = []
     now = datetime.now(timezone.utc)

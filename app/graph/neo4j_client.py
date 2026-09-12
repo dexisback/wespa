@@ -52,6 +52,14 @@ class Neo4jClient:
         ]
         for s in stmts:
             self.run(s)
+        # Backfill provenance for documents ingested before Document->Entity
+        # mention edges became part of the graph contract. This is idempotent.
+        self.run(
+            """MATCH (d:Document), (s:Entity)-[r]->(o:Entity)
+               WHERE r.document_id = d.id
+               MERGE (d)-[:MENTIONS]->(s)
+               MERGE (d)-[:MENTIONS]->(o)"""
+        )
 
     def close(self):
         self.driver.close()

@@ -24,6 +24,9 @@ class FakeGraphWriter:
     def upsert_document(self, document_id, title, url, published_at, source_id):
         self.documents[document_id] = {"title": title, "url": url, "published_at": published_at}
 
+    def link_document_entity(self, document_id, entity_id):
+        self.documents.setdefault(document_id, {}).setdefault("mentions", set()).add(entity_id)
+
     def upsert_entity(self, entity_id, name, etype):
         if entity_id not in self.entities:
             self.entities[entity_id] = {"name": name, "type": etype}

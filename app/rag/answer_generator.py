@@ -24,7 +24,10 @@ def answer_confidence(facts, passages, conflicts: int) -> tuple[float, str]:
         sims = [p.similarity if p.similarity is not None else 0.6 for p in passages]
         avg_rel = sum(rels) / len(rels)
         avg_sim = max(0.0, min(1.0, sum(sims) / len(sims)))
-        c = compute_confidence(avg_rel, 1, avg_sim)
+        # Repeated chunks from one publisher are not corroboration. Independent
+        # sources should be able to raise confidence; duplicates should not.
+        source_count = len({p.source for p in passages if p.source})
+        c = compute_confidence(avg_rel, max(1, source_count), avg_sim)
     else:
         c = 0.15
     if conflicts:

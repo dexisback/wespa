@@ -4,6 +4,7 @@ import logging
 import re
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 from ..config import TOP_K_PASSAGES, reset_skip_llm_override, set_skip_llm_override, should_skip_llm
@@ -72,7 +73,13 @@ def _fallback_entities(question: str) -> list[str]:
     return sorted(candidates)[:6]
 
 
-def retrieve(question: str, mode: str, as_of: str | None = None) -> dict:
+def retrieve(
+    question: str,
+    mode: str,
+    as_of: str | None = None,
+    entity_seeds: list[str] | None = None,
+    document_ids: list[str] | None = None,
+) -> dict:
     """Three genuinely different retrieval paths."""
     bundle = {"facts": [], "passages": [], "graph_path": GraphPath(), "matched": [], "chain_fact_ids": [], "used_graph": False, "used_vector": False}
 
@@ -81,8 +88,8 @@ def retrieve(question: str, mode: str, as_of: str | None = None) -> dict:
         bundle["used_vector"] = True
 
     if mode in ("graph", "hybrid"):
-        seeds = extract_query_entities(question)
-        result = retrieve_facts(seeds, as_of=as_of)
+        seeds = entity_seeds if entity_seeds is not None else extract_query_entities(question)
+        result = retrieve_facts(seeds, as_of=as_of, document_ids=document_ids)
         bundle["facts"] = result["facts"]
         bundle["graph_path"] = result["graph_path"]
         bundle["matched"] = result["matched"]
@@ -129,6 +136,17 @@ def _salient_tokens(question: str) -> list[str]:
     evidence (e.g. a Maruti passage also contains 'model')."""
     words = [w.lower().strip(".,?!'\"") for w in question.split()]
     return [w for w in words if len(w) >= 3 and w not in _RELEVANCE_STOP]
+
+
+def _topic_phrases(question: str, salient: list[str]) -> list[str]:
+    """Return multi-word topic phrases that must survive retrieval together."""
+    words = [w.lower().strip(".,?!'\"") for w in question.split()]
+    salient_set = set(salient)
+    return [
+        f"{words[i]} {words[i + 1]}"
+        for i in range(len(words) - 1)
+        if words[i] in salient_set and words[i + 1] in salient_set
+    ]
 
 
 def _token_hit(token: str, hay: str) -> bool:
@@ -214,15 +232,29 @@ def _relevance_report(question: str, facts: list[Fact], passages: list) -> dict:
     fact_texts = [f"{f.subject_name} {f.relation.replace('_', ' ')} {f.object_name}" for f in facts]
     passage_texts = [p.text for p in passages]
     hay = " ".join(fact_texts + passage_texts).lower()
+    phrases = _topic_phrases(question, salient)
 
     hits = [t for t in salient if _token_hit(t, hay)]
     anchor_hits = [t for t in anchors if _token_hit(t, hay)]
-    relevant_facts = sum(
-        1 for text in fact_texts if any(_token_hit(t, text.lower()) for t in salient)
-    )
-    relevant_passages = sum(
-        1 for text in passage_texts if any(_token_hit(t, text.lower()) for t in salient)
-    )
+    def item_relevant(text: str) -> bool:
+        lower = text.lower()
+        if phrases and any(phrase in lower for phrase in phrases):
+            return True
+        item_hits = sum(1 for t in anchors if _token_hit(t, lower))
+        if len(anchors) <= 1:
+            return item_hits > 0
+        return item_hits >= max(2, (len(anchors) + 1) // 2)
+
+    relevant_facts = sum(1 for text in fact_texts if item_relevant(text))
+    relevant_passages = sum(1 for text in passage_texts if item_relevant(text))
+    topic_items = fact_texts + passage_texts
+    item_coverages = [
+        sum(1 for t in anchors if _token_hit(t, text.lower())) / max(1, len(anchors))
+        for text in topic_items
+    ]
+    item_topic_relevance = max(item_coverages, default=0.0)
+    if phrases and any(phrase in text.lower() for phrase in phrases for text in topic_items):
+        item_topic_relevance = 1.0
     relevance = (len(hits) / len(salient)) if salient else 1.0
     topic_relevance = (len(anchor_hits) / len(anchors)) if anchors else relevance
     
@@ -236,6 +268,8 @@ def _relevance_report(question: str, facts: list[Fact], passages: list) -> dict:
         "anchor_hits": anchor_hits,
         "relevance": relevance,
         "topic_relevance": topic_relevance,
+        "item_topic_relevance": item_topic_relevance,
+        "topic_phrases": phrases,
         "relevant_facts": relevant_facts,
         "relevant_passages": relevant_passages,
         "irrelevant_passages": len(passage_texts) - relevant_passages,
@@ -255,7 +289,8 @@ def _confidence_breakdown(facts: list[Fact], passages: list, conflicts: int) -> 
     elif passages:
         rel = sum(reliability(p.source) for p in passages) / max(1, len(passages))
         ext = 0.8
-        ag = 1.0 if len(passages) > 1 else 0.5
+        source_count = len({p.source for p in passages if p.source})
+        ag = 0.5 if source_count <= 1 else 0.75 if source_count == 2 else 1.0
     else:
         rel, ext, ag = DEFAULT_RELIABILITY, 0.0, 0.5
     supporting = len({f.source_name or f.source_id for f in facts} | {p.source for p in passages})
@@ -424,7 +459,10 @@ def _sufficiency(facts: list[Fact], passages: list, conf: float, question: str =
         return {"sufficient": False, "reason": f"only {evidence_count} evidence item(s) in memory — too thin to answer reliably", **base}
     if conf < 0.45:
         return {"sufficient": False, "reason": f"memory evidence is low-confidence ({conf:.2f})", **base}
-    if rep["anchors"] and rep["topic_relevance"] < 0.6:
+    if rep["anchors"] and (
+        rep["topic_relevance"] < 0.6
+        or (rep.get("topic_phrases") and rep.get("item_topic_relevance", 0.0) < 1.0)
+    ):
         missing = [t for t in rep["anchors"] if t not in rep["anchor_hits"]][:3]
         return {
             "sufficient": False,
@@ -458,8 +496,37 @@ def _answer_question_impl(question: str, mode: str = "hybrid", allow_live: bool 
     query_id = f"q_{uuid.uuid4().hex[:10]}"
     pipeline: list[PipelineStage] = []
 
+    query_entities: list[str] | None = None
+
     def _re_retrieve():
-        b = retrieve(question, mode, as_of=as_of)
+        nonlocal query_entities
+        # Entity extraction is an LLM call. Reusing it across the live-fetch
+        # recheck removes one avoidable network round trip.
+        if mode in ("graph", "hybrid") and query_entities is None:
+            query_entities = extract_query_entities(question)
+        if mode == "hybrid":
+            # Graph lookup and vector lookup are independent I/O operations.
+            # Running them together lowers the critical path for every query.
+            with ThreadPoolExecutor(max_workers=2) as ex:
+                graph_future = ex.submit(retrieve, question, "graph", as_of, query_entities)
+                vector_future = ex.submit(retrieve, question, "vector", as_of)
+                initial_graph = graph_future.result()
+                vector_bundle = vector_future.result()
+            document_ids = list({p.document_id for p in vector_bundle["passages"] if p.document_id})
+            graph_path = initial_graph.get("graph_path")
+            if document_ids and (not graph_path or not graph_path.nodes):
+                # Use the actual retrieved documents as graph seeds. This
+                # recovers entities even when query entity extraction is weak.
+                b = retrieve(
+                    question, "graph", as_of, query_entities, document_ids=document_ids
+                )
+            else:
+                b = initial_graph
+            b["passages"] = vector_bundle["passages"]
+            b["used_vector"] = True
+            b["facts"], b["passages"] = _merge_rank(b["facts"], b["passages"], question, b["chain_fact_ids"])
+        else:
+            b = retrieve(question, mode, as_of=as_of, entity_seeds=query_entities)
         b["question"] = question
         return b
 

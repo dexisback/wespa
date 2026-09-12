@@ -45,6 +45,14 @@ class GraphWriter:
             did=document_id, title=title, url=url, pub=published_at, sid=source_id,
         )
 
+    def link_document_entity(self, document_id: str, entity_id: str):
+        """Persist document provenance even when relation extraction finds no fact."""
+        self.g.run(
+            """MATCH (d:Document {id:$did}), (e:Entity {id:$eid})
+               MERGE (d)-[:MENTIONS]->(e)""",
+            did=document_id, eid=entity_id,
+        )
+
     def upsert_entity(self, entity_id: str, name: str, etype: str):
         self.g.run(
             """MERGE (e:Entity {id:$eid})

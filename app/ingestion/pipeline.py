@@ -72,9 +72,6 @@ def ingest_documents(
                 continue
             seen_hashes.add(chash)
 
-            chunks = _chunk_models(doc, cleaned)
-            summary.chunks_embedded += vectors.add_chunks(chunks) if vectors else add_chunks(chunks)
-
             text_for_extraction = cleaned[:MAX_DOC_CHARS]
             entities = extract_entities(text_for_extraction)
             relations = extract_relations(
@@ -98,6 +95,7 @@ def ingest_documents(
                 if not graph.entity_exists(eid):
                     new_entities += 1
                 graph.upsert_entity(eid, e.name, e.type)
+                graph.link_document_entity(doc.document_id, eid)
             summary.entities_added += new_entities
 
             for r in relations:
@@ -142,6 +140,11 @@ def ingest_documents(
                 doc.document_id, src_id, doc.url, doc.title,
                 doc.published_at, doc.retrieved_at, chash,
             )
+            # Commit semantic chunks only after graph and provenance writes
+            # succeed. This prevents vector-only documents that can answer but
+            # can never participate in graph retrieval.
+            chunks = _chunk_models(doc, cleaned)
+            summary.chunks_embedded += vectors.add_chunks(chunks) if vectors else add_chunks(chunks)
             summary.documents_added += 1
         except Exception as e:
             summary.documents_failed += 1
