@@ -18,8 +18,8 @@ llm:
 
 extraction:
   max_document_chars: 6000
-  entity_types: [Person, Organization, Product, Money]
-  allowed_relations: [FOUNDED, WORKED_AT, LEFT, LEADS, ACQUIRED, INVESTED_IN, RELEASED, RAISED, VALUED_AT]
+  entity_types: [Person, Organization, Product, Money, Technology, Event]
+  allowed_relations: [FOUNDED, WORKED_AT, LEFT, LEADS, ACQUIRED, INVESTED_IN, RELEASED, RAISED, VALUED_AT, USES, HAS_FEATURE, REPLACED, INTRODUCED_IN, ANNOUNCED, DEVELOPED_BY, PART_OF, OWNS, PARTNERED_WITH, COMPETED_IN]
 
 trust:
   default_reliability: 0.6

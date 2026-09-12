@@ -90,11 +90,14 @@ def ingest_documents(
             db.upsert_source(src_id, doc.source, "", rel_weight)
 
             entity_types = {e.name.lower(): e.type for e in entities}
+            
+            # Add all extracted entities to the graph, not just those in relations
             new_entities = 0
-            for name in {r["subject"] for r in relations} | {r["object"] for r in relations}:
-                eid = entity_id_for(name)
+            for e in entities:
+                eid = entity_id_for(e.name)
                 if not graph.entity_exists(eid):
                     new_entities += 1
+                graph.upsert_entity(eid, e.name, e.type)
             summary.entities_added += new_entities
 
             for r in relations:

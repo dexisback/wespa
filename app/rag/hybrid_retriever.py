@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 from ..config import TOP_K_PASSAGES, reset_skip_llm_override, set_skip_llm_override, should_skip_llm
 from ..db.postgres import get_db
-from ..extraction.schemas import Fact, QueryResult, SourceCard
+from ..extraction.schemas import Fact, GraphPath, QueryResult, SourceCard
 from ..graph.graph_retriever import retrieve_facts
 from ..rag.answer_generator import answer_confidence, generate_answer
 from ..trust.confidence import label
@@ -74,7 +74,7 @@ def _fallback_entities(question: str) -> list[str]:
 
 def retrieve(question: str, mode: str, as_of: str | None = None) -> dict:
     """Three genuinely different retrieval paths."""
-    bundle = {"facts": [], "passages": [], "graph_path": None, "matched": [], "chain_fact_ids": [], "used_graph": False, "used_vector": False}
+    bundle = {"facts": [], "passages": [], "graph_path": GraphPath(), "matched": [], "chain_fact_ids": [], "used_graph": False, "used_vector": False}
 
     if mode in ("vector", "hybrid"):
         bundle["passages"] = vector_search(question, k=TOP_K_PASSAGES, as_of=as_of)
@@ -136,6 +136,74 @@ def _token_hit(token: str, hay: str) -> bool:
     return re.search(rf"\b{re.escape(token)}(?:s|es|ed|d|ing)?\b", hay) is not None
 
 
+def _check_temporal_mismatch(question: str, evidence_text: str) -> dict:
+    """Detect when the question asks about a specific time period but evidence is from different periods.
+    Also detects other specificity mismatches (locations, versions, models, etc.).
+    Returns {has_mismatch: bool, requested: str, found: list[str], reason: str}"""
+    q_lower = question.lower()
+    
+    # Extract years from question (4-digit numbers likely to be years)
+    question_years = set(re.findall(r'\b(19\d{2}|20\d{2})\b', question))
+    
+    # Extract temporal references from question
+    question_temporal = []
+    if re.search(r'\b(latest|current|currently|right now|today|this year|recent|recently)\b', q_lower):
+        question_temporal.append("current/recent")
+    if re.search(r'\b(last year|previous year|past year)\b', q_lower):
+        question_temporal.append("last year")
+    if question_years:
+        question_temporal.extend(question_years)
+    
+    # Extract years from evidence
+    evidence_years = set(re.findall(r'\b(19\d{2}|20\d{2})\b', evidence_text))
+    
+    # If question asks for specific year(s) but evidence mentions different years
+    if question_years:
+        if evidence_years and not (question_years & evidence_years):
+            # Evidence has years but none match the requested year
+            return {
+                "has_mismatch": True,
+                "requested": ", ".join(sorted(question_years)),
+                "found": sorted(evidence_years),
+                "reason": f"evidence mentions {', '.join(sorted(evidence_years)[:5])} but question asks about {', '.join(sorted(question_years))}"
+            }
+    
+    # If question asks for current/recent info, flag if evidence seems dated
+    if "current/recent" in question_temporal:
+        from datetime import datetime, timezone as tz
+        current_year = datetime.now(tz.utc).year
+        if evidence_years:
+            most_recent = max(int(y) for y in evidence_years)
+            if most_recent < current_year - 1:  # Evidence is 2+ years old
+                return {
+                    "has_mismatch": True,
+                    "requested": "current/recent information",
+                    "found": sorted(evidence_years),
+                    "reason": f"question asks for current/recent info but evidence is from {most_recent}"
+                }
+    
+    # Check for version/model mismatches (e.g., "iPhone 15" vs "iPhone 14")
+    version_patterns = [
+        (r'\b(version|v\.|ver\.?)\s*([0-9]+(?:\.[0-9]+)*)', 'version'),
+        (r'\b([A-Z][a-z]+)\s+([0-9]{1,2})\b', 'model'),  # "iPhone 15", "Formula 1"
+        (r'\b(generation|gen)\s+([0-9]+)', 'generation'),
+    ]
+    for pattern, label in version_patterns:
+        q_matches = set(re.findall(pattern, question, re.IGNORECASE))
+        e_matches = set(re.findall(pattern, evidence_text, re.IGNORECASE))
+        if q_matches and e_matches and not (q_matches & e_matches):
+            q_str = ', '.join(f"{m[0]} {m[1]}" for m in sorted(q_matches)[:3])
+            e_str = ', '.join(f"{m[0]} {m[1]}" for m in sorted(e_matches)[:3])
+            return {
+                "has_mismatch": True,
+                "requested": q_str,
+                "found": [e_str],
+                "reason": f"question asks about {q_str} but evidence discusses {e_str}"
+            }
+    
+    return {"has_mismatch": False, "requested": None, "found": [], "reason": ""}
+
+
 def _relevance_report(question: str, facts: list[Fact], passages: list) -> dict:
     """Per-item topical relevance: does the evidence actually mention the
     requested entities/topics? Word-boundary matching, no fuzzy substring hits."""
@@ -157,6 +225,10 @@ def _relevance_report(question: str, facts: list[Fact], passages: list) -> dict:
     )
     relevance = (len(hits) / len(salient)) if salient else 1.0
     topic_relevance = (len(anchor_hits) / len(anchors)) if anchors else relevance
+    
+    # Temporal mismatch detection: check if question asks about a specific year/time period
+    temporal_mismatch = _check_temporal_mismatch(question, hay)
+    
     return {
         "salient": salient,
         "anchors": anchors,
@@ -167,6 +239,7 @@ def _relevance_report(question: str, facts: list[Fact], passages: list) -> dict:
         "relevant_facts": relevant_facts,
         "relevant_passages": relevant_passages,
         "irrelevant_passages": len(passage_texts) - relevant_passages,
+        "temporal_mismatch": temporal_mismatch,
     }
 
 
@@ -318,6 +391,16 @@ def _sufficiency(facts: list[Fact], passages: list, conf: float, question: str =
 
     if evidence_count == 0:
         return {"sufficient": False, "reason": "no evidence in memory for this question", **base}
+    
+    # Check for temporal mismatch: question asks about 2016, evidence is about 2014/2015/2026
+    if rep.get("temporal_mismatch", {}).get("has_mismatch"):
+        tm = rep["temporal_mismatch"]
+        return {
+            "sufficient": False,
+            "reason": f"memory contains related material but from wrong time period — {tm['reason']}",
+            **base,
+        }
+    
     if rep["anchors"] and not rep["anchor_hits"]:
         topics = ", ".join(rep["anchors"][:4])
         return {
@@ -419,6 +502,7 @@ def _answer_question_impl(question: str, mode: str = "hybrid", allow_live: bool 
     live_fetch: dict | None = None
     live_retrieval_used = False
     still_insufficient = False
+    verdict2 = verdict  # Initialize verdict2 to verdict in case live retrieval doesn't run
 
     if not sufficient and allow_live:
         if bundle["facts"] or bundle["passages"]:
