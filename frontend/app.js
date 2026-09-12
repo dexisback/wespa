@@ -141,6 +141,18 @@ async function ask(question, isModeSwitch) {
     }
     const data = await resp.json();
     lastResult = data;
+    console.groupCollapsed("[Memory Engine] query diagnostics");
+    console.log("retrieval", {
+      mode: data.retrieval_mode,
+      live: data.live_retrieval_used,
+      latencyMs: data.latency_ms,
+      fetchedSources: data.sources_fetched,
+    });
+    console.log("graph", data.graph_debug, data.graph_path);
+    if (data.graph_debug === undefined) {
+      console.error("[Memory Engine] backend is stale: /query did not return graph_debug. Restart/reload the FastAPI process.");
+    }
+    console.groupEnd();
     renderResult(data);
     stopStatus();
     refreshMemStatus();
@@ -299,7 +311,10 @@ function renderGraph(data) {
   const gp = data.graph_path;
   if (!gp || !gp.nodes || gp.nodes.length === 0) {
     container.classList.add("empty");
-    $("graph-note").textContent = currentMode === "vector" ? "No graph traversal used" : "";
+    const reason = data.graph_debug?.reason;
+    $("graph-note").textContent = currentMode === "vector"
+      ? "No graph traversal used"
+      : `Graph unavailable${reason ? ` · ${reason}` : ""}`;
     if (graphNetwork) { graphNetwork.destroy(); graphNetwork = null; }
     return;
   }

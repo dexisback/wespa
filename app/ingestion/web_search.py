@@ -199,6 +199,10 @@ def live_retrieval(question: str, max_docs: int = 3) -> dict:
         )
         for d in docs
     ]
+    log.info(
+        "live retrieval fetched documents: %s",
+        [{"id": d["document_id"], "source": d["source"], "url": d["url"]} for d in docs],
+    )
     summary = ingest_documents(documents)
     t_total = time.time() - t0
     log.info("live retrieval took %.1fs (fetch %.1fs, ingest+extract %.1fs, %d docs)", t_total, t_fetch, t_total - t_fetch, len(docs))

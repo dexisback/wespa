@@ -77,6 +77,10 @@ def ingest_documents(
             relations = extract_relations(
                 text_for_extraction, [e.name for e in entities], ALLOWED_RELATIONS
             )
+            log.info(
+                "document %s extraction: entities=%d relations=%d source=%s",
+                doc.document_id, len(entities), len(relations), doc.source,
+            )
 
             src_id = source_id_for(doc.source)
             rel_weight = reliability(doc.source)
@@ -97,6 +101,7 @@ def ingest_documents(
                 graph.upsert_entity(eid, e.name, e.type)
                 graph.link_document_entity(doc.document_id, eid)
             summary.entities_added += new_entities
+            log.info("document %s graph mentions written: %d", doc.document_id, len(entities))
 
             for r in relations:
                 subject_id, object_id = entity_id_for(r["subject"]), entity_id_for(r["object"])

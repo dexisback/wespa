@@ -137,6 +137,7 @@ class QueryResult(BaseModel):
     live_fetch: Optional[dict] = None
     answer_dependencies: list[str] = Field(default_factory=list)
     as_of: Optional[str] = None
+    graph_debug: dict = Field(default_factory=dict)
 
 
 class QueryRequest(BaseModel):

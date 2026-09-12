@@ -69,7 +69,18 @@ def retrieve_facts(
     g = _client(client)
     lowered = [_entity_key(n) for n in seed_names if n and n.strip()]
     document_ids = [d for d in (document_ids or []) if d]
-    empty = {"facts": [], "graph_path": GraphPath(), "matched": []}
+    empty = {
+        "facts": [], "graph_path": GraphPath(), "matched": [],
+        "graph_debug": {
+            "seed_names": seed_names,
+            "document_ids": document_ids,
+            "matched_entities": 0,
+            "facts": 0,
+            "nodes": 0,
+            "edges": 0,
+            "reason": "no graph seeds or retrieved documents",
+        },
+    }
     if not lowered and not document_ids:
         return empty
 
@@ -290,4 +301,15 @@ def retrieve_facts(
         "graph_path": GraphPath(nodes=list(nodes.values()), edges=list(edges.values()), paths=final_paths),
         "matched": [m["name"] for m in matched],
         "chain_fact_ids": sorted(chain_fact_ids),
+        "graph_debug": {
+            "seed_names": seed_names,
+            "document_ids": document_ids,
+            "matched_entities": len(matched),
+            "facts": len(fact_list),
+            "nodes": len(nodes),
+            "edges": len(edges),
+            "mention_edges": sum(1 for edge_id in edges if edge_id.startswith("mention:")),
+            "paths": len(final_paths),
+            "reason": "graph path materialized" if nodes else "no matching graph nodes",
+        },
     }

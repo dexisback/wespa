@@ -81,7 +81,7 @@ def retrieve(
     document_ids: list[str] | None = None,
 ) -> dict:
     """Three genuinely different retrieval paths."""
-    bundle = {"facts": [], "passages": [], "graph_path": GraphPath(), "matched": [], "chain_fact_ids": [], "used_graph": False, "used_vector": False}
+    bundle = {"facts": [], "passages": [], "graph_path": GraphPath(), "matched": [], "chain_fact_ids": [], "used_graph": False, "used_vector": False, "graph_debug": {}}
 
     if mode in ("vector", "hybrid"):
         bundle["passages"] = vector_search(question, k=TOP_K_PASSAGES, as_of=as_of)
@@ -94,6 +94,7 @@ def retrieve(
         bundle["graph_path"] = result["graph_path"]
         bundle["matched"] = result["matched"]
         bundle["chain_fact_ids"] = result.get("chain_fact_ids", [])
+        bundle["graph_debug"] = result.get("graph_debug", {})
         bundle["used_graph"] = True
         if bundle["facts"]:
             bundle["facts"] = _rank_facts(bundle["facts"], question, bundle["chain_fact_ids"])
@@ -522,6 +523,11 @@ def _answer_question_impl(question: str, mode: str = "hybrid", allow_live: bool 
                 )
             else:
                 b = initial_graph
+            log.info(
+                "query graph debug: seeds=%s docs=%s nodes=%s edges=%s facts=%s",
+                query_entities, document_ids, len(b.get("graph_path").nodes) if b.get("graph_path") else 0,
+                len(b.get("graph_path").edges) if b.get("graph_path") else 0, len(b.get("facts", [])),
+            )
             b["passages"] = vector_bundle["passages"]
             b["used_vector"] = True
             b["facts"], b["passages"] = _merge_rank(b["facts"], b["passages"], question, b["chain_fact_ids"])
@@ -689,6 +695,7 @@ def _answer_question_impl(question: str, mode: str = "hybrid", allow_live: bool 
         retrieval_mode=mode,
         latency_ms=latency_ms,
         graph_path=bundle["graph_path"],
+        graph_debug=bundle.get("graph_debug", {}),
         pipeline=pipeline,
         memory_sufficient=verdict2["sufficient"] if live_retrieval_used and allow_live and not sufficient else sufficient,
         memory_reason=verdict2["reason"] if live_retrieval_used and allow_live and not sufficient else verdict["reason"],
