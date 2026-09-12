@@ -9,10 +9,12 @@ API_URL = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Free-tier quota is token-based (e.g. 8000 tokens/min): pace ourselves.
+# Now that OpenRouter failover exists, prefer a small gap and let 429s fail
+# over fast instead of sleeping — speed matters more than perfect pacing.
 _TOKEN_FLOOR = 1200
 _DEFAULT_RESET_WAIT = 10.0
-_MIN_CALL_GAP = 8.0  # seconds; keeps us near but under the per-minute token cap
-_MAX_RESET_WAIT = 15.0  # with a failover provider available, never sleep long on 429
+_MIN_CALL_GAP = 2.0  # seconds between LLM calls; 429s fail over to OpenRouter instead of waiting
+_MAX_RESET_WAIT = 5.0  # with OpenRouter as primary, never sleep long around Groq
 
 _last_call_at = 0.0
 
@@ -102,48 +104,46 @@ def chat(messages, temperature=0.2, json_mode=False, max_tokens=1800):
         raise LLMError("no LLM provider key is set (GROQ_API_KEY / OPENROUTER_API_KEY)")
     if isinstance(messages, str):
         messages = [{"role": "user", "content": messages}]  # tolerate bare-string prompts
-    payload = {
-        "model": GROQ_MODEL,
+    base = {
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
     if json_mode:
-        payload["response_format"] = {"type": "json_object"}
+        base["response_format"] = {"type": "json_object"}
+
+    # Provider order: OpenRouter PRIMARY (when configured — Groq free tier hits
+    # per-minute and daily token caps), Groq FALLBACK.
+    providers: list[tuple[str, str, str]] = []
+    if OPENROUTER_API_KEY:
+        providers.append(("openrouter", OPENROUTER_API_URL, OPENROUTER_MODEL))
+    if GROQ_API_KEY:
+        providers.append(("groq", API_URL, GROQ_MODEL))
+
     last_error = None
-
-    for attempt in range(2):
-        # primary: Groq
-        try:
-            _pace()
-            resp = _post(API_URL, payload, 60)
-            if resp.status_code == 200:
-                _sleep_for_reset(resp)
-                return _content_of(resp)
-            if resp.status_code == 429:
-                last_error = "groq http 429 (rate limited)"
-                _sleep_for_reset(resp)
-            elif resp.status_code in (500, 502, 503, 504):
-                last_error = f"groq http {resp.status_code}"
-                time.sleep(3.0)
-            else:
-                last_error = f"groq http {resp.status_code}: {resp.text[:160]}"
-        except httpx.HTTPError as e:
-            last_error = f"groq request failed: {e}"
-
-        # failover: OpenRouter (same model family) — keeps the app alive when
-        # Groq hits per-minute or daily (TPD) caps
-        if OPENROUTER_API_KEY:
+    for _attempt in range(2):
+        for name, url, model in providers:
+            payload = {"model": model, **base}
             try:
                 _pace()
-                ofl_payload = dict(payload)
-                ofl_payload["model"] = OPENROUTER_MODEL
-                resp = _post(OPENROUTER_API_URL, ofl_payload, 90)
+                resp = _post(url, payload, 90 if name == "openrouter" else 60)
                 if resp.status_code == 200:
+                    if name == "groq":
+                        _sleep_for_reset(resp)
                     return _content_of(resp)
-                last_error = f"openrouter http {resp.status_code}: {resp.text[:160]}"
+                if resp.status_code == 429:
+                    last_error = f"{name} http 429 (rate limited)"
+                    if name == "groq":
+                        _sleep_for_reset(resp)
+                    else:
+                        time.sleep(2.0)
+                elif resp.status_code in (500, 502, 503, 504):
+                    last_error = f"{name} http {resp.status_code}"
+                    time.sleep(2.0)
+                else:
+                    last_error = f"{name} http {resp.status_code}: {resp.text[:160]}"
             except httpx.HTTPError as e:
-                last_error = f"openrouter request failed: {e}"
+                last_error = f"{name} request failed: {e}"
 
     raise LLMError(f"LLM call failed after retries: {last_error}")
 

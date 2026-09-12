@@ -317,13 +317,14 @@ def _sufficiency(facts: list[Fact], passages: list, conf: float, question: str =
         return {"sufficient": False, "reason": f"only {evidence_count} evidence item(s) in memory — too thin to answer reliably", **base}
     if conf < 0.45:
         return {"sufficient": False, "reason": f"memory evidence is low-confidence ({conf:.2f})", **base}
-    if rep["salient"] and rep["relevance"] < 0.35:
+    if rep["salient"] and rep["relevance"] < 0.6:
+        missing = [t for t in rep["salient"] if t not in rep["hits"]][:3]
         return {
             "sufficient": False,
             "reason": (
-                f"memory contains related material, but not enough about this topic "
-                f"(topical relevance {rep['relevance']:.2f}; {rep['relevant_facts']} relevant graph facts, "
-                f"{rep['relevant_passages']} relevant passages)"
+                f"memory contains related material, but not about this topic "
+                f"(topical relevance {rep['relevance']:.2f}, missing '{', '.join(missing)}'; "
+                f"{rep['relevant_facts']} relevant graph facts, {rep['relevant_passages']} relevant passages)"
             ),
             **base,
         }

@@ -8,6 +8,7 @@ def _stable_hash(s: str) -> int:
 
 import logging
 import re
+import time
 from datetime import datetime, timezone
 from urllib.parse import quote, unquote, urlparse
 
@@ -131,20 +132,18 @@ def _source_name(url: str) -> str:
 def live_retrieval(question: str, max_docs: int = 3) -> dict:
     """Controlled memory-first fallback: search the web, ingest what we find,
     return an IngestionSummary-shaped dict so the caller can show what changed."""
+    t0 = time.time()
     results = search_web(question, max_results=max_docs + 1)
 
     docs = []
     now = datetime.now(timezone.utc)
-    for r in results[:max_docs]:
+
+    def _fetch(r):
         try:
             title, text = fetch_article(r["url"])
-        except Exception as e:
-            log.info("skipping unfetchable %s: %s", r["url"], e)
-            continue
-        if len(text) < 200:
-            continue
-        docs.append(
-            {
+            if len(text) < 200:
+                return None
+            return {
                 "document_id": f"doc_live_{_stable_hash(r['url']) % 10**10:010d}",
                 "title": title or r["title"],
                 "url": r["url"],
@@ -152,7 +151,17 @@ def live_retrieval(question: str, max_docs: int = 3) -> dict:
                 "published_at": now.isoformat(),
                 "text": text[:_MAX_CHARS],
             }
-        )
+        except Exception as e:
+            log.info("skipping unfetchable %s: %s", r["url"], e)
+            return None
+
+    # fetch candidate pages in parallel — sequential fetching was the main latency
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=max_docs) as ex:
+        fetched = list(ex.map(_fetch, results[:max_docs]))
+    docs = [d for d in fetched if d]
+    t_fetch = time.time() - t0
 
     # Wikipedia co-provider: guarantees at least one content-rich, reliable source
     # when search results turn out to be JS shells or thin pages.
@@ -190,12 +199,15 @@ def live_retrieval(question: str, max_docs: int = 3) -> dict:
         for d in docs
     ]
     summary = ingest_documents(documents)
+    t_total = time.time() - t0
+    log.info("live retrieval took %.1fs (fetch %.1fs, ingest+extract %.1fs, %d docs)", t_total, t_fetch, t_total - t_fetch, len(docs))
     out = summary.model_dump()
     out["ok"] = summary.documents_added > 0
     out["searched_urls"] = [r["url"] for r in results[:3]]
     out["fetched_sources"] = [
         {"url": d["url"], "title": d["title"], "source": d["source"]} for d in docs
     ]
+    out["elapsed_s"] = round(t_total, 1)
     if not out["ok"]:
         out["error"] = "ingested content added nothing new to memory"
         out["ingested_but_empty"] = summary.documents_skipped_duplicate > 0
