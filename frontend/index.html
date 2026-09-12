@@ -60,12 +60,8 @@
       <label class="opt" title="If memory can't answer, fetch new evidence from the web, learn it into memory, then answer from the updated memory">
         <input id="opt-live" type="checkbox" checked> <span>Fetch new evidence if memory is insufficient</span>
       </label>
-      <label class="opt" title="Toggle the request-level SKIP_LLM setting for fast deterministic demo answers">
-        <input id="opt-skip-llm" type="checkbox"> <span>SKIP_LLM</span>
-      </label>
-      <label class="opt" title="Reconstruct memory as it was on this date — time travel">
-        <span>as of</span> <input id="opt-asof" type="date">
-        <button id="opt-asof-clear" class="btn ghost tiny">✕</button>
+      <label class="opt" title="Use the deterministic response path for a faster answer">
+        <input id="opt-skip-llm" type="checkbox"> <span>Fast deterministic mode</span>
       </label>
       <div id="latency" class="latency"></div>
     </div>
@@ -81,7 +77,6 @@
         <button id="btn-why" class="btn ghost small">Why this answer?</button>
       </div>
       <p id="answer" class="answer-text"></p>
-      <div id="as-of-tag" class="as-of-tag hidden"></div>
       <div id="memory-updated" class="memory-updated hidden"></div>
       <div id="pipeline" class="pipeline hidden"></div>
       <div id="conflicts" class="conflicts hidden"></div>

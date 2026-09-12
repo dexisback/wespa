@@ -41,7 +41,6 @@ function init() {
   $("btn-impact").onclick = openImpact;
   $("btn-ingest").onclick = toggleFixtureMenu;
   $("btn-ingest-url").onclick = ingestUrl;
-  $("opt-asof-clear").onclick = () => { $("opt-asof").value = ""; };
   $("opt-skip-llm").onchange = () => { if (lastQuestion) ask(lastQuestion, true); };
   $("btn-why").onclick = toggleWhy;
   document.addEventListener("click", (e) => {
@@ -84,10 +83,8 @@ function timeAgo(iso) {
 
 /* ---------- status stages ---------- */
 function startStatus(mode) {
-  const asof = $("opt-asof").value;
   const live = $("opt-live").checked;
   const stages = [];
-  if (asof) stages.push("Time travel — reconstructing memory as of " + asof + "...");
   if (currentMode !== "vector") stages.push("Searching graph memory...");
   stages.push("Searching semantic memory...");
   if (currentMode === "hybrid") stages.push("Merging evidence...");
@@ -122,7 +119,6 @@ async function ask(question, isModeSwitch) {
   $("btn-ask").disabled = true;
   startStatus(currentMode);
   if (isModeSwitch) { $("result").classList.remove("hidden"); $("empty").classList.add("hidden"); }
-  const asof = $("opt-asof").value ? new Date($("opt-asof").value + "T12:00:00Z").toISOString() : null;
   try {
     const resp = await fetch(`${API}/query`, {
       method: "POST",
@@ -132,7 +128,7 @@ async function ask(question, isModeSwitch) {
         retrieval_mode: currentMode,
         allow_live: $("opt-live").checked,
         skip_llm: $("opt-skip-llm").checked,
-        as_of: asof,
+        as_of: null,
       }),
     });
     if (!resp.ok) {
@@ -185,12 +181,6 @@ function renderResult(data) {
   const pct = Math.round((data.confidence || 0) * 100);
   badge.innerHTML = `Confidence&nbsp; ${data.confidence_label || "—"} <span class="bar"><i style="width:${pct}%;background:currentColor"></i></span> ${pct}%`;
   $("conf-detail").textContent = `0.5·source trust + 0.3·corroboration + 0.2·extraction`;
-
-  const asofTag = $("as-of-tag");
-  if (data.as_of) {
-    asofTag.classList.remove("hidden");
-    asofTag.innerHTML = `⏱ Reconstruction of memory <b>as of ${esc(data.as_of.slice(0, 10))}</b> — facts valid on that date only.`;
-  } else asofTag.classList.add("hidden");
 
   const mu = $("memory-updated");
   if (data.live_retrieval_used && data.memory_updates) {
@@ -250,9 +240,9 @@ function renderWhy(bd) {
       <span class="v">${Math.round(v * 100)}%</span></div>`;
   wp.innerHTML = `
     <div class="why-title">WHY THIS CONFIDENCE</div>
-    ${bar("Source reliability", bd.source_reliability, "#7aa2ff")}
-    ${bar("Cross-source agreement", bd.cross_source_agreement, "#4ade80")}
-    ${bar("Extraction confidence", bd.extraction_confidence, "#c084fc")}
+    ${bar("Source reliability", bd.source_reliability, "#9ab0c9")}
+    ${bar("Cross-source agreement", bd.cross_source_agreement, "#9eb5a4")}
+    ${bar("Extraction confidence", bd.extraction_confidence, "#b3a3bf")}
     <div class="why-meta">Supporting sources: <b>${bd.supporting_sources}</b>${bd.conflicting_sources ? ` · <span style="color:var(--red)">Conflicting: ${bd.conflicting_sources}</span>` : " · Conflicting: 0"}</div>
     <div class="why-meta dim">${esc(bd.explanation)}</div>`;
 }
@@ -335,7 +325,7 @@ function renderGraph(data) {
   });
 
   const TYPE_COLORS = {
-    Person: "#c084fc", Organization: "#7aa2ff", Product: "#4ade80", Money: "#fbbf24",
+    Person: "#b8a9c9", Organization: "#9ab0c9", Product: "#9fb7a7", Money: "#c4ae82",
   };
 
   const nodes = new vis.DataSet(gp.nodes.map((n) => {
@@ -346,11 +336,11 @@ function renderGraph(data) {
       label: n.label,
       shape: n.type === "Person" ? "dot" : "box",
       color: {
-        background: onPrimary ? "#25408f" : inPath ? "#1e2c52" : "#1a1e26",
-        border: onPrimary ? "#9ab6ff" : inPath ? "#7aa2ff" : "#2a303b",
-        highlight: { background: "#25408f", border: "#9ab6ff" },
+        background: onPrimary ? "#344556" : inPath ? "#2a343e" : "#23282d",
+        border: onPrimary ? "#b7c7d9" : inPath ? "#9ab0c9" : "#59636d",
+        highlight: { background: "#405466", border: "#c9d5e1" },
       },
-      font: { color: onPrimary || inPath ? "#dbe6ff" : "#9aa1ad", size: onPrimary ? 13 : 12, face: "Inter, sans-serif" },
+      font: { color: onPrimary || inPath ? "#e8ecef" : "#b0b6bc", size: onPrimary ? 13 : 12, face: "Inter, sans-serif" },
       size: n.type === "Person" ? (onPrimary ? 17 : 14) : undefined,
       borderWidth: onPrimary ? 2.5 : inPath ? 2 : 1,
       title: `${n.label} · ${n.type}${onPrimary ? " · on answer path" : inPath ? " · in traversal" : ""}`,
@@ -367,9 +357,9 @@ function renderGraph(data) {
       label: e.label,
       arrows: "to",
       physics: false,
-      color: { color: hot ? "#7aa2ff" : "#333a46", highlight: "#9ab6ff" },
+      color: { color: hot ? "#9ab0c9" : "#4b555f", highlight: "#c9d5e1" },
       width: hot ? 2.5 : 1,
-      font: { size: 9.5, color: hot ? "#9ab6ff" : "#5a6270", background: "none" },
+      font: { size: 9.5, color: hot ? "#b7c7d9" : "#7e878d", background: "none" },
       smooth: { type: "curvedCW", roundness: 0.12 },
       title: `${e.label} · confidence ${Math.round((e.confidence || 0) * 100)}%${e.active ? "" : " · historical"}`,
       _primary: onPrimary,
@@ -389,9 +379,9 @@ function renderGraph(data) {
   const baseWidth = 3;
   anim.forEach((e, i) => {
     setTimeout(() => {
-      edges.update({ id: e.id, color: { color: "#e6efff" }, width: baseWidth + 1.5, font: { size: 10.5, color: "#e6efff", background: "none" } });
+      edges.update({ id: e.id, color: { color: "#e8ecef" }, width: baseWidth + 1.5, font: { size: 10.5, color: "#e8ecef", background: "none" } });
       setTimeout(() => {
-        edges.update({ id: e.id, color: { color: "#9ab6ff" }, width: baseWidth });
+        edges.update({ id: e.id, color: { color: "#9ab0c9" }, width: baseWidth });
       }, 380);
     }, 420 + i * 380);
   });
@@ -486,10 +476,9 @@ async function openCompare() {
   }
   $("compare-body").innerHTML = `<div class="status" style="color:var(--accent)"><span class="spinner"></span>Running the same question through Vector, Graph and Hybrid...</div>`;
   try {
-    const asof = $("opt-asof").value ? new Date($("opt-asof").value + "T12:00:00Z").toISOString() : null;
     const run = (mode) => fetch(`${API}/query`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: q, retrieval_mode: mode, as_of: asof }),
+      body: JSON.stringify({ question: q, retrieval_mode: mode, as_of: null }),
     }).then((r) => r.json());
     const [v, g, h] = await Promise.all([run("vector"), run("graph"), run("hybrid")]);
     const col = (mode, d) => {
