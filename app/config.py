@@ -30,6 +30,8 @@ POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "memoryengine2025")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", SETTINGS["llm"]["model"])
 SKIP_LLM = os.getenv("SKIP_LLM", "false").lower() in ("true", "1", "yes")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-120b")
 
 CHUNK_SIZE = SETTINGS["chunking"]["size"]
 CHUNK_OVERLAP = SETTINGS["chunking"]["overlap"]

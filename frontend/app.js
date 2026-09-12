@@ -47,7 +47,14 @@ function init() {
     if (!e.target.closest(".ingest-wrap")) $("fixture-menu").classList.add("hidden");
   });
   refreshMemStatus();
+  loadDocuments();
   setInterval(refreshMemStatus, 30000);
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll("#mode-toggle button").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
+  if (lastQuestion) ask(lastQuestion, true);
 }
 
 /* ---------- memory status bar ---------- */
@@ -135,6 +142,7 @@ async function ask(question, isModeSwitch) {
     renderResult(data);
     stopStatus();
     refreshMemStatus();
+    if (data.live_retrieval_used) loadDocuments();
   } catch (e) {
     stopStatus(e.message || "Query failed.");
     toast(e.message || "Query failed.", true);
@@ -488,6 +496,30 @@ async function openCompare() {
   }
 }
 
+/* ---------- documents in memory (inline list) ---------- */
+async function loadDocuments() {
+  try {
+    const data = await (await fetch(`${API}/documents?limit=100`)).json();
+    const docs = data.documents || [];
+    const wrap = $("docs-list");
+    if (!docs.length) {
+      wrap.innerHTML = `<p style="color:var(--text-dim);font-size:13px">No documents in memory yet — ingest a source to start.</p>`;
+      return;
+    }
+    const learned = docs.filter((d) => d.learned).length;
+    wrap.innerHTML = docs.map((d) => `
+      <div class="doc-row">
+        <div class="doc-main">
+          <div class="k">${esc(d.title)}${d.learned ? '<span class="new-badge">LEARNED</span>' : ""}</div>
+          <div class="metric-sub">${esc(d.source)} · ${fmtDate(d.published_at)} · ${d.facts_extracted} facts extracted · trust ${d.reliability != null ? Math.round(d.reliability * 100) + "%" : "—"}</div>
+        </div>
+        ${d.url ? `<div class="doc-link"><a href="${esc(d.url)}" target="_blank" rel="noopener">article ↗</a></div>` : ""}
+      </div>`).join("");
+    const hint = $("docs-section").querySelector(".hint");
+    if (hint) hint.innerHTML = `${data.count} documents · ${learned} learned automatically by live retrieval`;
+  } catch { /* cosmetic section; ignore */ }
+}
+
 /* ---------- knowledge impact ---------- */
 async function openImpact(factId) {
   $("impact-panel").classList.remove("hidden");
@@ -652,6 +684,7 @@ async function runIngest(body) {
     ];
     toast(lines.join("<br>"));
     refreshMemStatus();
+    loadDocuments();
     return data;
   } catch (e) {
     toast(`Unable to ingest this source. ${esc(e.message)}`, true);

@@ -338,3 +338,16 @@ h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
 .claim.winner .what { color: var(--green); }
 .why-list { margin: 6px 0 0 18px; font-size: 12.5px; color: var(--text-dim); }
 .why-list li { margin-bottom: 4px; }
+
+/* ---------- documents panel (inline list) ---------- */
+.docs-section {
+  margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--border-soft);
+}
+.docs-list { margin-top: 6px; }
+.doc-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 10px 12px; border-bottom: 1px solid var(--border-soft); font-size: 13px;
+}
+.doc-row .k { font-weight: 500; }
+.doc-link a { color: var(--accent); text-decoration: none; font-size: 12.5px; }
+.doc-link a:hover { text-decoration: underline; }

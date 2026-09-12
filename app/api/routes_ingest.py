@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 
 from ..config import RAW_DIR
+from ..graph.neo4j_client import get_graph
 from ..ingestion.pipeline import ingest_documents, load_documents_from_file
 from ..extraction.schemas import IngestionSummary
 
@@ -26,6 +27,43 @@ def list_fixtures():
                 title = p.name
             files.append({"file": p.name, "title": title})
     return {"fixtures": files}
+
+
+@router.get("/documents")
+def list_documents(limit: int = 100):
+    """Every document/article in memory — seed corpus, fixtures, manual ingests
+    and AI-learned live retrievals (marked learned=true)."""
+    try:
+        lim = min(max(limit, 1), 200)
+        g = get_graph()
+        rows = g.run(
+            """MATCH (s:Source)-[:PUBLISHED]->(d:Document)
+               OPTIONAL MATCH ()-[r]->() WHERE r.document_id = d.id AND r.relation IS NOT NULL
+               WITH d, s, count(r) AS facts
+               RETURN d.id AS document_id, d.title AS title, d.url AS url,
+                      toString(d.published_at) AS published_at,
+                      s.name AS source, s.reliability AS reliability, facts
+               ORDER BY d.published_at DESC LIMIT $lim""",
+            lim=lim,
+        )
+        out = []
+        for r in rows:
+            did = r["document_id"] or ""
+            out.append(
+                {
+                    "document_id": did,
+                    "title": r["title"] or "(untitled)",
+                    "url": r["url"] or "",
+                    "source": r["source"] or "Unknown",
+                    "published_at": r["published_at"],
+                    "reliability": r["reliability"],
+                    "facts_extracted": r["facts"] or 0,
+                    "learned": did.startswith("doc_live_"),
+                }
+            )
+        return {"documents": out, "count": len(out)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"document lookup failed: {e}")
 
 
 @router.post("/ingest", response_model=IngestionSummary)
