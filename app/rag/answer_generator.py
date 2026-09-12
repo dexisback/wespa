@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-from ..config import SKIP_LLM
+from ..config import should_skip_llm
 from ..llm import LLMError, chat
 from ..trust.confidence import confidence as compute_confidence
 from ..trust.confidence import label
@@ -72,7 +72,7 @@ def generate_answer(question: str, facts, passages, mode: str, as_of: str | None
 
     prompt = build_answer_prompt(question, facts, passages, mode, as_of=as_of)
     try:
-        if SKIP_LLM:
+        if should_skip_llm():
             raise LLMError("SKIP_LLM is enabled")
         answer = chat(prompt, temperature=0.2, max_tokens=700).strip()
     except LLMError as e:

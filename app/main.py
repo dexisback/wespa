@@ -20,7 +20,7 @@ app = APIRouter()
 
 @app.get("/health")
 def health():
-    status = {"postgres": False, "neo4j": False, "chroma": False, "groq_key": False}
+    status = {"postgres": False, "neo4j": False, "chroma": False, "groq_key": False, "gemini_key": False, "gemini_fallback_key": False, "openrouter_key": False}
     try:
         status["postgres"] = get_db().health()
     except Exception:
@@ -33,10 +33,14 @@ def health():
         status["chroma"] = chroma_health()
     except Exception:
         pass
-    from .config import GROQ_API_KEY
+    from .config import GEMINI_API_KEY, GEMINI_API_KEY_FALLBACK, GROQ_API_KEY, OPENROUTER_API_KEY
 
     status["groq_key"] = bool(GROQ_API_KEY)
-    status["all_ready"] = all([status["postgres"], status["neo4j"], status["chroma"], status["groq_key"]])
+    status["gemini_key"] = bool(GEMINI_API_KEY)
+    status["gemini_fallback_key"] = bool(GEMINI_API_KEY_FALLBACK)
+    status["openrouter_key"] = bool(OPENROUTER_API_KEY)
+    status["llm_ready"] = any([status["gemini_key"], status["gemini_fallback_key"], status["openrouter_key"], status["groq_key"]])
+    status["all_ready"] = all([status["postgres"], status["neo4j"], status["chroma"], status["llm_ready"]])
     return status
 
 

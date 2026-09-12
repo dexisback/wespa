@@ -6,7 +6,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-from ..config import SKIP_LLM, TOP_K_PASSAGES
+from ..config import TOP_K_PASSAGES, reset_skip_llm_override, set_skip_llm_override, should_skip_llm
 from ..db.postgres import get_db
 from ..extraction.schemas import Fact, QueryResult, SourceCard
 from ..graph.graph_retriever import retrieve_facts
@@ -25,7 +25,7 @@ QUERY_ENTITY_TMPL = (
 def extract_query_entities(question: str) -> list[str]:
     """Small LLM call to find which entities to seed the graph traversal with.
     Falls back to capitalized n-grams when the LLM is unavailable or SKIP_LLM is set."""
-    if SKIP_LLM:
+    if should_skip_llm():
         return _fallback_entities(question)
     from ..llm import LLMError, chat_json
 
@@ -51,18 +51,24 @@ _STOP_TOKENS = {
     "person", "startup", "startups", "after", "leaving", "left", "found", "founded",
     "become", "connected", "they", "that", "this", "have", "was", "were", "did",
     "does", "between", "march", "june", "april", "there", "their", "about", "with",
+    "latest", "update", "updates", "recent", "current", "currently", "right", "today",
+    "italian", "prime", "minister",
 }
 
 
 def _fallback_entities(question: str) -> list[str]:
     candidates = set()
-    words = question.replace("?", " ").replace(",", " ").replace(".", " ").split()
+    words = re.findall(r"[A-Za-z][\w'\-]*", question)
     for i, w in enumerate(words):
         if w[:1].isupper() and len(w) >= 4 and w.lower() not in _STOP_TOKENS:
             pair = f"{w} {words[i + 1]}" if i + 1 < len(words) and words[i + 1][:1].isupper() else None
             candidates.add(w)
             if pair:
                 candidates.add(pair)
+        elif len(w) >= 4 and w.lower() not in _STOP_TOKENS:
+            # People often type proper names in lowercase. Neo4j performs
+            # partial, case-insensitive matching, so these are safe seeds.
+            candidates.add(w)
     return sorted(candidates)[:6]
 
 
@@ -109,6 +115,11 @@ _RELEVANCE_STOP = {
     "price", "prices", "sale", "sell", "market", "segment", "type", "types", "kind", "kinds",
     "name", "names", "known", "know", "info", "information", "details", "detail",
     "car", "cars", "motor", "motors", "vehicle", "vehicles", "truck", "trucks",
+    # query framing / generic intent words — these must not make unrelated
+    # documents look topical (for example car articles for a bike question).
+    "latest", "current", "currently", "right", "now", "today", "recent", "recently",
+    "model", "models", "lineup", "launch", "launched", "launches", "launching",
+    "give", "all", "list", "listing", "tell", "show", "find", "go",
 }
 
 
@@ -129,11 +140,15 @@ def _relevance_report(question: str, facts: list[Fact], passages: list) -> dict:
     """Per-item topical relevance: does the evidence actually mention the
     requested entities/topics? Word-boundary matching, no fuzzy substring hits."""
     salient = _salient_tokens(question)
+    anchors = [t for t in salient if t not in _RELEVANCE_STOP]
+    if not anchors:
+        anchors = salient
     fact_texts = [f"{f.subject_name} {f.relation.replace('_', ' ')} {f.object_name}" for f in facts]
     passage_texts = [p.text for p in passages]
     hay = " ".join(fact_texts + passage_texts).lower()
 
     hits = [t for t in salient if _token_hit(t, hay)]
+    anchor_hits = [t for t in anchors if _token_hit(t, hay)]
     relevant_facts = sum(
         1 for text in fact_texts if any(_token_hit(t, text.lower()) for t in salient)
     )
@@ -141,10 +156,14 @@ def _relevance_report(question: str, facts: list[Fact], passages: list) -> dict:
         1 for text in passage_texts if any(_token_hit(t, text.lower()) for t in salient)
     )
     relevance = (len(hits) / len(salient)) if salient else 1.0
+    topic_relevance = (len(anchor_hits) / len(anchors)) if anchors else relevance
     return {
         "salient": salient,
+        "anchors": anchors,
         "hits": hits,
+        "anchor_hits": anchor_hits,
         "relevance": relevance,
+        "topic_relevance": topic_relevance,
         "relevant_facts": relevant_facts,
         "relevant_passages": relevant_passages,
         "irrelevant_passages": len(passage_texts) - relevant_passages,
@@ -266,9 +285,14 @@ def source_cards(bundle: dict) -> list[SourceCard]:
     cards: dict[str, SourceCard] = {}
 
     def add(name, title, url, published, conf):
-        if not name or name in cards:
+        if not name:
             return
-        cards[name] = SourceCard(
+        # Keep separate article cards even when two results come from the same
+        # publisher; live retrieval should visibly show the evidence breadth.
+        key = url or f"{name}:{title}"
+        if key in cards:
+            return
+        cards[key] = SourceCard(
             source_name=name, title=title or "", url=url or "",
             published_at=published, confidence=conf,
         )
@@ -294,8 +318,8 @@ def _sufficiency(facts: list[Fact], passages: list, conf: float, question: str =
 
     if evidence_count == 0:
         return {"sufficient": False, "reason": "no evidence in memory for this question", **base}
-    if rep["salient"] and not rep["hits"]:
-        topics = ", ".join(rep["salient"][:4])
+    if rep["anchors"] and not rep["anchor_hits"]:
+        topics = ", ".join(rep["anchors"][:4])
         return {
             "sufficient": False,
             "reason": (
@@ -317,13 +341,13 @@ def _sufficiency(facts: list[Fact], passages: list, conf: float, question: str =
         return {"sufficient": False, "reason": f"only {evidence_count} evidence item(s) in memory — too thin to answer reliably", **base}
     if conf < 0.45:
         return {"sufficient": False, "reason": f"memory evidence is low-confidence ({conf:.2f})", **base}
-    if rep["salient"] and rep["relevance"] < 0.6:
-        missing = [t for t in rep["salient"] if t not in rep["hits"]][:3]
+    if rep["anchors"] and rep["topic_relevance"] < 0.6:
+        missing = [t for t in rep["anchors"] if t not in rep["anchor_hits"]][:3]
         return {
             "sufficient": False,
             "reason": (
                 f"memory contains related material, but not about this topic "
-                f"(topical relevance {rep['relevance']:.2f}, missing '{', '.join(missing)}'; "
+                f"(topical relevance {rep['topic_relevance']:.2f}, missing '{', '.join(missing)}'; "
                 f"{rep['relevant_facts']} relevant graph facts, {rep['relevant_passages']} relevant passages)"
             ),
             **base,
@@ -338,7 +362,7 @@ def _sufficiency(facts: list[Fact], passages: list, conf: float, question: str =
     }
 
 
-def answer_question(question: str, mode: str = "hybrid", allow_live: bool = False, as_of: str | None = None) -> QueryResult:
+def _answer_question_impl(question: str, mode: str = "hybrid", allow_live: bool = False, as_of: str | None = None) -> QueryResult:
     """Full query operation, timed end-to-end; logs to PostgreSQL.
 
     Memory-first flow: search persistent memory; if the evidence is insufficient
@@ -365,6 +389,16 @@ def answer_question(question: str, mode: str = "hybrid", allow_live: bool = Fals
     conf_est, _ = answer_confidence(facts, passages, conflicts=0)
     verdict = _sufficiency(facts, passages, conf_est, question)
     sufficient = verdict["sufficient"]
+    freshness_requested = bool(
+        re.search(r"\b(latest|current|currently|right now|today|recent|recently)\b", question.lower())
+    ) and not as_of
+    if sufficient and allow_live and freshness_requested:
+        sufficient = False
+        verdict = {
+            **verdict,
+            "sufficient": False,
+            "reason": "the question asks for fresh/current information, so local memory must be refreshed",
+        }
     if sufficient:
         pipeline.append(PipelineStage(name="Memory found", detail=verdict["reason"]))
     elif bundle["facts"] or bundle["passages"]:
@@ -523,3 +557,12 @@ def answer_question(question: str, mode: str = "hybrid", allow_live: bool = Fals
     except Exception as e:
         log.warning("query logging skipped: %s", e)
     return result
+
+
+def answer_question(question: str, mode: str = "hybrid", allow_live: bool = False, as_of: str | None = None, skip_llm: bool | None = None) -> QueryResult:
+    """Run one query with an isolated frontend override for SKIP_LLM."""
+    token = set_skip_llm_override(skip_llm)
+    try:
+        return _answer_question_impl(question, mode, allow_live=allow_live, as_of=as_of)
+    finally:
+        reset_skip_llm_override(token)

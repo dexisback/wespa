@@ -143,6 +143,7 @@ class QueryRequest(BaseModel):
     question: str
     retrieval_mode: RetrievalMode = "hybrid"
     allow_live: bool = False
+    skip_llm: Optional[bool] = None
     as_of: Optional[str] = None
 
 

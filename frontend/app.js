@@ -42,6 +42,7 @@ function init() {
   $("btn-ingest").onclick = toggleFixtureMenu;
   $("btn-ingest-url").onclick = ingestUrl;
   $("opt-asof-clear").onclick = () => { $("opt-asof").value = ""; };
+  $("opt-skip-llm").onchange = () => { if (lastQuestion) ask(lastQuestion, true); };
   $("btn-why").onclick = toggleWhy;
   document.addEventListener("click", (e) => {
     if (!e.target.closest(".ingest-wrap")) $("fixture-menu").classList.add("hidden");
@@ -130,6 +131,7 @@ async function ask(question, isModeSwitch) {
         question,
         retrieval_mode: currentMode,
         allow_live: $("opt-live").checked,
+        skip_llm: $("opt-skip-llm").checked,
         as_of: asof,
       }),
     });
@@ -641,7 +643,7 @@ async function toggleFixtureMenu() {
     const data = await (await fetch(`${API}/ingest/fixtures`)).json();
     $("fixture-list").innerHTML = data.fixtures.map((f) => `<div class="fx" data-f="${esc(f.file)}">${esc(f.title)}</div>`).join("") || `<div class="fx">no fixtures</div>`;
     $("fixture-list").querySelectorAll(".fx[data-f]").forEach((el) => {
-      el.onclick = () => { menu.classList.add("hidden"); runIngest({ mode: "fixture", fixture: el.dataset.f }); };
+      el.onclick = () => { menu.classList.add("hidden"); runIngest({ mode: "fixture", fixture: el.dataset.f }).catch(() => {}); };
     });
   } catch {
     $("fixture-list").innerHTML = `<div class="fx">failed to load fixtures</div>`;
@@ -657,9 +659,9 @@ async function ingestUrl() {
     const data = await runIngest({ mode: "url", url });
     $("fixture-menu").classList.add("hidden");
     $("ingest-url").value = "";
-    toast(data.message || "Memory updated.");
+    toast(data?.message || "Memory updated.");
   } catch (e) {
-    toast(`Unable to ingest this URL. ${esc(e.message)}`, true);
+    toast(`Unable to ingest this URL. ${esc(e?.message || e || "Ingestion failed")}`, true);
     $("fixture-list").innerHTML = `<div class="fx">failed — try another URL</div>`;
   } finally {
     $("btn-ingest-url").disabled = false;
@@ -674,8 +676,10 @@ async function runIngest(body) {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.detail || "Ingestion failed");
+    const raw = await resp.text();
+    let data = {};
+    try { data = raw ? JSON.parse(raw) : {}; } catch { /* server returned non-JSON */ }
+    if (!resp.ok) throw new Error(data.detail || raw || `Ingestion failed (${resp.status})`);
     const lines = [
       `<b>MEMORY UPDATED</b>`,
       `+${data.entities_added} entities · +${data.relationships_added} relationships`,
@@ -687,7 +691,8 @@ async function runIngest(body) {
     loadDocuments();
     return data;
   } catch (e) {
-    toast(`Unable to ingest this source. ${esc(e.message)}`, true);
+    toast(`Unable to ingest this source. ${esc(e?.message || e || "Ingestion failed")}`, true);
+    throw e;
   } finally {
     $("btn-ingest").disabled = false;
     $("btn-ingest").textContent = "Ingest new source";

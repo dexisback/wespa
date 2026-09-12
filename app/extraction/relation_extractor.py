@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 
-from ..config import SKIP_LLM
+from ..config import should_skip_llm
 from ..llm import LLMError, chat_json
 from ..trust.source_weights import entity_id_for
 
@@ -83,7 +83,7 @@ def normalize_relation(rel: str, allowed: list[str]) -> str | None:
 def extract_relations(text: str, entity_names: list[str], allowed_relations: list[str]) -> list[dict]:
     """Returns list of {subject, relation, object, extraction_confidence, subject_type, object_type}.
     Falls back to deterministic sentence-pattern extraction when the LLM is unavailable."""
-    if not SKIP_LLM:
+    if not should_skip_llm():
         messages = [
             {"role": "system", "content": SYSTEM},
             {

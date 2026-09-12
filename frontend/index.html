@@ -60,6 +60,9 @@
       <label class="opt" title="If memory can't answer, fetch new evidence from the web, learn it into memory, then answer from the updated memory">
         <input id="opt-live" type="checkbox" checked> <span>Fetch new evidence if memory is insufficient</span>
       </label>
+      <label class="opt" title="Toggle the request-level SKIP_LLM setting for fast deterministic demo answers">
+        <input id="opt-skip-llm" type="checkbox"> <span>SKIP_LLM</span>
+      </label>
       <label class="opt" title="Reconstruct memory as it was on this date — time travel">
         <span>as of</span> <input id="opt-asof" type="date">
         <button id="opt-asof-clear" class="btn ghost tiny">✕</button>

@@ -34,7 +34,7 @@ def search_web(query: str, max_results: int = 3) -> list[dict]:
             _DDG_ENDPOINT,
             data={"q": query, "kl": "wt-wt"},
             headers={"User-Agent": _UA},
-            timeout=12,
+            timeout=4,
             follow_redirects=True,
         )
         resp.raise_for_status()
@@ -82,7 +82,7 @@ def wikipedia_fallback(query: str) -> dict | None:
                 "srsearch": query, "srlimit": 1,
             },
             headers={"User-Agent": _UA},
-            timeout=10,
+            timeout=4,
         )
         r.raise_for_status()
         hits = r.json().get("query", {}).get("search", [])
@@ -96,7 +96,7 @@ def wikipedia_fallback(query: str) -> dict | None:
                 "explaintext": 1, "redirects": 1, "titles": title,
             },
             headers={"User-Agent": _UA},
-            timeout=10,
+            timeout=4,
         )
         r2.raise_for_status()
         pages = r2.json().get("query", {}).get("pages", {})
@@ -140,7 +140,7 @@ def live_retrieval(question: str, max_docs: int = 3) -> dict:
 
     def _fetch(r):
         try:
-            title, text = fetch_article(r["url"])
+            title, text = fetch_article(r["url"], timeout=5)
             if len(text) < 200:
                 return None
             return {
@@ -158,14 +158,15 @@ def live_retrieval(question: str, max_docs: int = 3) -> dict:
     # fetch candidate pages in parallel — sequential fetching was the main latency
     from concurrent.futures import ThreadPoolExecutor
 
-    with ThreadPoolExecutor(max_workers=max_docs) as ex:
+    with ThreadPoolExecutor(max_workers=min(max_docs, max(1, len(results)))) as ex:
         fetched = list(ex.map(_fetch, results[:max_docs]))
     docs = [d for d in fetched if d]
     t_fetch = time.time() - t0
 
-    # Wikipedia co-provider: guarantees at least one content-rich, reliable source
-    # when search results turn out to be JS shells or thin pages.
-    if len(docs) < max_docs:
+    # Only pay for the secondary provider when the primary search produced no
+    # usable article. This avoids an unnecessary serial 2-request delay during
+    # the normal multi-article path.
+    if not docs:
         wiki = wikipedia_fallback(question)
         if wiki and not any(d["url"] == wiki["url"] for d in docs):
             docs.append(
@@ -203,7 +204,7 @@ def live_retrieval(question: str, max_docs: int = 3) -> dict:
     log.info("live retrieval took %.1fs (fetch %.1fs, ingest+extract %.1fs, %d docs)", t_total, t_fetch, t_total - t_fetch, len(docs))
     out = summary.model_dump()
     out["ok"] = summary.documents_added > 0
-    out["searched_urls"] = [r["url"] for r in results[:3]]
+    out["searched_urls"] = [r["url"] for r in results[:max_docs]]
     out["fetched_sources"] = [
         {"url": d["url"], "title": d["title"], "source": d["source"]} for d in docs
     ]

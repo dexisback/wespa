@@ -3,10 +3,21 @@ import time
 
 import httpx
 
-from .config import GROQ_API_KEY, GROQ_MODEL, OPENROUTER_API_KEY, OPENROUTER_MODEL
+from .config import (
+    GEMINI_API_KEY,
+    GEMINI_API_KEY_FALLBACK,
+    GEMINI_API_KEY_FALLBACK_NAME,
+    GEMINI_API_KEY_NAME,
+    GEMINI_MODEL,
+    GROQ_API_KEY,
+    GROQ_MODEL,
+    OPENROUTER_API_KEY,
+    OPENROUTER_MODEL,
+)
 
 API_URL = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 # Free-tier quota is token-based (e.g. 8000 tokens/min): pace ourselves.
 # Now that OpenRouter failover exists, prefer a small gap and let 429s fail
@@ -86,6 +97,39 @@ def _post(url: str, payload: dict, timeout: float):
     return httpx.post(url, json=payload, headers=headers, timeout=timeout)
 
 
+def _gemini_payload(messages: list[dict], temperature: float, json_mode: bool, max_tokens: int) -> dict:
+    system = []
+    contents = []
+    for message in messages:
+        role = message.get("role", "user")
+        content = message.get("content", "")
+        if role == "system":
+            system.append(content)
+        else:
+            contents.append({"role": "model" if role == "assistant" else "user", "parts": [{"text": content}]})
+    payload = {
+        "contents": contents,
+        "generationConfig": {
+            "temperature": temperature,
+            "maxOutputTokens": max_tokens,
+        },
+    }
+    if system:
+        payload["systemInstruction"] = {"parts": [{"text": "\n\n".join(system)}]}
+    if json_mode:
+        payload["generationConfig"]["responseMimeType"] = "application/json"
+    return payload
+
+
+def _gemini_content(resp) -> str:
+    data = resp.json()
+    parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+    content = "".join(p.get("text", "") for p in parts if p.get("text"))
+    if not content:
+        raise LLMError("Gemini returned empty content")
+    return content
+
+
 def _content_of(resp) -> str:
     data = resp.json()
     msg = data["choices"][0]["message"]
@@ -100,8 +144,8 @@ def _content_of(resp) -> str:
 
 
 def chat(messages, temperature=0.2, json_mode=False, max_tokens=1800):
-    if not GROQ_API_KEY and not OPENROUTER_API_KEY:
-        raise LLMError("no LLM provider key is set (GROQ_API_KEY / OPENROUTER_API_KEY)")
+    if not GEMINI_API_KEY and not GEMINI_API_KEY_FALLBACK and not OPENROUTER_API_KEY and not GROQ_API_KEY:
+        raise LLMError("no LLM provider key is set")
     if isinstance(messages, str):
         messages = [{"role": "user", "content": messages}]  # tolerate bare-string prompts
     base = {
@@ -112,22 +156,39 @@ def chat(messages, temperature=0.2, json_mode=False, max_tokens=1800):
     if json_mode:
         base["response_format"] = {"type": "json_object"}
 
-    # Provider order: OpenRouter PRIMARY (when configured — Groq free tier hits
-    # per-minute and daily token caps), Groq FALLBACK.
-    providers: list[tuple[str, str, str]] = []
+    # Gemini is the fast primary. The second Gemini account is the immediate
+    # fallback, then OpenRouter, with Groq retained as the final compatibility fallback.
+    providers: list[tuple[str, str, str, str, str]] = []
+    if GEMINI_API_KEY:
+        providers.append(("gemini", GEMINI_API_URL, GEMINI_MODEL, GEMINI_API_KEY, GEMINI_API_KEY_NAME))
+    if GEMINI_API_KEY_FALLBACK and GEMINI_API_KEY_FALLBACK != GEMINI_API_KEY:
+        providers.append(("gemini-fallback", GEMINI_API_URL, GEMINI_MODEL, GEMINI_API_KEY_FALLBACK, GEMINI_API_KEY_FALLBACK_NAME))
     if OPENROUTER_API_KEY:
-        providers.append(("openrouter", OPENROUTER_API_URL, OPENROUTER_MODEL))
+        providers.append(("openrouter", OPENROUTER_API_URL, OPENROUTER_MODEL, "", ""))
     if GROQ_API_KEY:
-        providers.append(("groq", API_URL, GROQ_MODEL))
+        providers.append(("groq", API_URL, GROQ_MODEL, "", ""))
 
     last_error = None
     for _attempt in range(2):
-        for name, url, model in providers:
+        for name, url, model, api_key, key_name in providers:
             payload = {"model": model, **base}
+            if name.startswith("gemini"):
+                payload = _gemini_payload(messages, temperature, json_mode, max_tokens)
             try:
-                _pace()
-                resp = _post(url, payload, 90 if name == "openrouter" else 60)
+                if not name.startswith("gemini"):
+                    _pace()
+                if name.startswith("gemini"):
+                    headers = {
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": api_key,
+                        "X-Client-Name": key_name or "wespa",
+                    }
+                    resp = httpx.post(url.format(model=model), json=payload, headers=headers, timeout=30)
+                else:
+                    resp = _post(url, payload, 60)
                 if resp.status_code == 200:
+                    if name.startswith("gemini"):
+                        return _gemini_content(resp)
                     if name == "groq":
                         _sleep_for_reset(resp)
                     return _content_of(resp)
@@ -135,11 +196,12 @@ def chat(messages, temperature=0.2, json_mode=False, max_tokens=1800):
                     last_error = f"{name} http 429 (rate limited)"
                     if name == "groq":
                         _sleep_for_reset(resp)
-                    else:
+                    elif name == "openrouter":
                         time.sleep(2.0)
                 elif resp.status_code in (500, 502, 503, 504):
                     last_error = f"{name} http {resp.status_code}"
-                    time.sleep(2.0)
+                    if not name.startswith("gemini"):
+                        time.sleep(1.0)
                 else:
                     last_error = f"{name} http {resp.status_code}: {resp.text[:160]}"
             except httpx.HTTPError as e:

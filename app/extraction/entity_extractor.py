@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 
-from ..config import SKIP_LLM
+from ..config import should_skip_llm
 from ..llm import LLMError, chat_json
 from ..extraction.schemas import Entity
 from ..trust.source_weights import entity_id_for
@@ -33,7 +33,7 @@ Return JSON exactly like: {{"entities": [{{"name": "...", "type": "..."}}]}}"""
 def extract_entities(text: str) -> list[Entity]:
     """Single-pass LLM entity extraction with a strict JSON schema.
     Falls back to deterministic regex extraction when the LLM is unavailable."""
-    if not SKIP_LLM:
+    if not should_skip_llm():
         messages = [
             {"role": "system", "content": SYSTEM},
             {"role": "user", "content": USER_TMPL.format(types=", ".join(_TYPES), text=text[:_MAX_CHARS])},

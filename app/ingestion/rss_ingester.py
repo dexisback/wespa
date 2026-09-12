@@ -8,7 +8,7 @@ def _stable_hash(s: str) -> int:
 
 import logging
 from datetime import datetime, timezone
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 import feedparser
 import httpx
@@ -19,7 +19,11 @@ from ..extraction.schemas import Document
 
 log = logging.getLogger("ingest.rss")
 
-HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; MemoryEngine/1.0)"}
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
 
 
 def _domain(url: str) -> str:
@@ -29,9 +33,9 @@ def _domain(url: str) -> str:
         return ""
 
 
-def fetch_article(url: str) -> tuple[str, str]:
+def fetch_article(url: str, timeout: float = 30) -> tuple[str, str]:
     """Returns (title, text) for a single article URL."""
-    resp = httpx.get(url, headers=HEADERS, timeout=30, follow_redirects=True)
+    resp = httpx.get(url, headers=HEADERS, timeout=timeout, follow_redirects=True)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
     title = soup.title.get_text(strip=True) if soup.title else url

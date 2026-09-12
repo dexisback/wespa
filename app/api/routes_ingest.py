@@ -84,7 +84,31 @@ def ingest(req: dict):
                 raise HTTPException(status_code=422, detail="url required")
             from ..ingestion.rss_ingester import ingest_url
 
-            docs = [ingest_url(url, source=req.get("source"))]
+            try:
+                docs = [ingest_url(url, source=req.get("source"))]
+            except Exception as direct_error:
+                # Publishers may block automated readers with a 403/paywall.
+                # Keep URL ingest useful for the demo by learning from accessible
+                # corroborating articles about the same URL topic.
+                from urllib.parse import unquote, urlparse
+
+                parsed = urlparse(url)
+                topic = unquote(parsed.path.rsplit("/", 1)[-1]).replace("-", " ")
+                topic = " ".join(topic.split()) or parsed.netloc
+                if not topic:
+                    raise
+                from ..ingestion.web_search import live_retrieval
+
+                fallback = live_retrieval(topic, max_docs=3)
+                if fallback.get("ok"):
+                    return fallback
+                raise HTTPException(
+                    status_code=502,
+                    detail=(
+                        f"publisher blocked the article and no accessible corroborating source was found: "
+                        f"{direct_error}"
+                    ),
+                )
         elif mode == "raw":
             if not req.get("document"):
                 raise HTTPException(status_code=422, detail="document payload required")
