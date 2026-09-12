@@ -18,13 +18,33 @@
       </div>
     </div>
     <div class="header-actions">
+      <button id="btn-impact" class="btn ghost">Impact</button>
+      <button id="btn-compare" class="btn ghost">Compare modes</button>
       <button id="btn-eval" class="btn ghost">Evaluation</button>
       <div class="ingest-wrap">
         <button id="btn-ingest" class="btn primary">Ingest new source</button>
-        <div id="fixture-menu" class="fixture-menu hidden"></div>
+        <div id="fixture-menu" class="fixture-menu hidden">
+          <div class="menu-url">
+            <input id="ingest-url" type="text" placeholder="Paste any article URL…">
+            <button id="btn-ingest-url" class="btn primary small">Add</button>
+          </div>
+          <div id="fixture-list"></div>
+        </div>
       </div>
     </div>
   </header>
+
+  <div id="mem-status" class="mem-status hidden">
+    <span class="dot ok"></span>
+    <span class="ms-title">MEMORY</span>
+    <span class="ms-item" id="ms-entities"></span>
+    <span class="ms-item" id="ms-facts"></span>
+    <span class="ms-item" id="ms-sources"></span>
+    <span class="ms-sep"></span>
+    <span class="ms-item dim" id="ms-breakdown"></span>
+    <span class="ms-sep"></span>
+    <span class="ms-item dim" id="ms-updated"></span>
+  </div>
 
   <section class="ask">
     <div class="searchbar">
@@ -37,6 +57,13 @@
         <button data-mode="graph">Graph only</button>
         <button data-mode="vector">Vector only</button>
       </div>
+      <label class="opt" title="If memory can't answer, fetch new evidence from the web, ingest it, then answer from updated memory">
+        <input id="opt-live" type="checkbox"> <span>Fetch new evidence if memory is insufficient</span>
+      </label>
+      <label class="opt" title="Reconstruct memory as it was on this date — time travel">
+        <span>as of</span> <input id="opt-asof" type="date">
+        <button id="opt-asof-clear" class="btn ghost tiny">✕</button>
+      </label>
       <div id="latency" class="latency"></div>
     </div>
     <div class="chips" id="chips"></div>
@@ -48,16 +75,20 @@
       <div class="answer-head">
         <div class="badge" id="conf-badge">CONFIDENCE —</div>
         <div id="conf-detail" class="conf-detail"></div>
+        <button id="btn-why" class="btn ghost small">Why this answer?</button>
       </div>
       <p id="answer" class="answer-text"></p>
+      <div id="as-of-tag" class="as-of-tag hidden"></div>
+      <div id="pipeline" class="pipeline hidden"></div>
       <div id="conflicts" class="conflicts hidden"></div>
+      <div id="why-panel" class="why-panel hidden"></div>
     </div>
 
     <div class="sources-label">Evidence</div>
     <div id="source-cards" class="source-cards"></div>
 
     <div class="facts-label" id="facts-block">
-      <div class="sources-label">Graph facts <span class="hint">click a fact for its history</span></div>
+      <div class="sources-label">Graph facts <span class="hint">click a fact for its history &amp; impact</span></div>
       <div id="fact-chips" class="fact-chips"></div>
     </div>
 
@@ -70,7 +101,7 @@
 
   <section id="empty" class="empty-state">
     <p class="empty-title">Traditional RAG retrieves documents.</p>
-    <p class="empty-sub">This engine continuously ingests trusted sources, turns them into a connected knowledge graph, remembers how facts change over time, and shows its work: sources, confidence, and the exact graph path behind every answer.</p>
+    <p class="empty-sub">This engine continuously ingests trusted sources, turns them into a connected knowledge graph, remembers how facts change over time, and shows its work: sources, confidence, and the exact graph path behind every answer. When memory can't answer, it fetches and learns new evidence — then tells you what changed.</p>
   </section>
 
   <div id="drawer" class="drawer hidden">
@@ -79,6 +110,26 @@
       <button id="drawer-close" class="btn ghost small">✕</button>
     </div>
     <div id="drawer-body" class="drawer-body"></div>
+  </div>
+
+  <div id="compare-panel" class="modal hidden">
+    <div class="modal-card wide">
+      <div class="drawer-head">
+        <h3>Retrieval mode comparison</h3>
+        <button id="compare-close" class="btn ghost small">✕</button>
+      </div>
+      <div id="compare-body" class="drawer-body"></div>
+    </div>
+  </div>
+
+  <div id="impact-panel" class="modal hidden">
+    <div class="modal-card wide">
+      <div class="drawer-head">
+        <h3>Knowledge impact</h3>
+        <button id="impact-close" class="btn ghost small">✕</button>
+      </div>
+      <div id="impact-body" class="drawer-body"></div>
+    </div>
   </div>
 
   <div id="eval-panel" class="modal hidden">

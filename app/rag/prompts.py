@@ -37,7 +37,7 @@ MODE_NOTES = {
 }
 
 
-def build_answer_prompt(question: str, facts, passages, mode: str) -> list[dict]:
+def build_answer_prompt(question: str, facts, passages, mode: str, as_of: str | None = None) -> list[dict]:
     fact_lines = []
     for f in facts:
         validity = "currently true" if f.active else f"held {f.valid_from} -> {f.valid_to}"
@@ -53,6 +53,13 @@ def build_answer_prompt(question: str, facts, passages, mode: str) -> list[dict]
         fact_lines = ["(none)"]
     if not passage_lines:
         passage_lines = ["(none)"]
+    as_of_note = ""
+    if as_of:
+        as_of_note = (
+            f"\nIMPORTANT — HISTORICAL RECONSTRUCTION: the user asks what memory believed AS OF {as_of[:10]}. "
+            "Only facts whose validity window covers that date were supplied. Answer in past tense about what was known then, "
+            "and do not use facts that became known later.\n"
+        )
     return [
         {"role": "system", "content": ANSWER_SYSTEM},
         {
@@ -61,7 +68,7 @@ def build_answer_prompt(question: str, facts, passages, mode: str) -> list[dict]
                 question=question,
                 facts="\n".join(fact_lines),
                 passages="\n".join(passage_lines),
-                mode_note=MODE_NOTES.get(mode, ""),
+                mode_note=MODE_NOTES.get(mode, "") + as_of_note,
             ),
         },
     ]

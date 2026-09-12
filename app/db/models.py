@@ -96,6 +96,15 @@ DDL = [
         created_at TIMESTAMPTZ DEFAULT now()
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS answer_facts (
+        query_id TEXT,
+        fact_id TEXT,
+        created_at TIMESTAMPTZ DEFAULT now()
+    )
+    """,
     "CREATE INDEX IF NOT EXISTS idx_documents_hash ON documents(content_hash)",
     "CREATE INDEX IF NOT EXISTS idx_fact_audit_fact ON fact_audit(fact_id)",
+    "CREATE INDEX IF NOT EXISTS idx_answer_facts_fact ON answer_facts(fact_id)",
+    "CREATE INDEX IF NOT EXISTS idx_answer_facts_query ON answer_facts(query_id)",
 ]

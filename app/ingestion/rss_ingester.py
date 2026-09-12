@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+def _stable_hash(s: str) -> int:
+    """Deterministic hash (Python's builtin hash() is salted per process)."""
+    import hashlib
+    return int(hashlib.sha256(s.encode()).hexdigest()[:16], 16)
+
+
 import logging
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -40,7 +46,7 @@ def ingest_url(url: str, source: str | None = None, published_at: datetime | Non
     title, text = fetch_article(url)
     now = datetime.now(timezone.utc)
     return Document(
-        document_id=f"doc_{abs(hash(url)) % 10**10:010d}",
+        document_id=f"doc_{_stable_hash(url) % 10**10:010d}",
         title=title,
         url=url,
         source=source or _domain(url).split(".")[0].title(),

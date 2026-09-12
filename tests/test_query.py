@@ -29,7 +29,7 @@ def fake_passage(text="Mira Murati founded Thinking Machines Lab.", source="The 
 def patched(monkeypatch):
     calls = {"graph": 0, "vector": 0, "entities": 0}
 
-    monkeypatch.setattr(hybrid, "vector_search", lambda q, k=5: (calls.__setitem__("vector", calls["vector"] + 1) or [fake_passage()]))
+    monkeypatch.setattr(hybrid, "vector_search", lambda q, k=5, as_of=None: (calls.__setitem__("vector", calls["vector"] + 1) or [fake_passage()]))
     monkeypatch.setattr(hybrid, "extract_query_entities", lambda q: (calls.__setitem__("entities", calls["entities"] + 1) or ["OpenAI"]))
     monkeypatch.setattr(hybrid, "retrieve_facts", lambda names, **kw: (calls.__setitem__("graph", calls["graph"] + 1) or {"facts": [fake_fact()], "graph_path": None, "matched": ["Mira Murati"]}))
     monkeypatch.setattr(hybrid, "get_db", lambda: FakeDB())
@@ -85,7 +85,7 @@ def test_api_query_endpoint(patched, monkeypatch):
         facts=[fake_fact()], passages=[fake_passage()], sources=["The Verge"],
         confidence=0.82, confidence_label="High", retrieval_mode="hybrid", latency_ms=312.0,
     )
-    monkeypatch.setattr(routes_query, "answer_question", lambda q, m: fake_result)
+    monkeypatch.setattr(routes_query, "answer_question", lambda q, m, allow_live=False, as_of=None: fake_result)
     from app.main import fastapi_app
 
     client = TestClient(fastapi_app)

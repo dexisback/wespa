@@ -14,7 +14,12 @@ def query(req: QueryRequest) -> QueryResult:
     if not question:
         raise HTTPException(status_code=422, detail="question must not be empty")
     try:
-        return answer_question(question, req.retrieval_mode)
+        return answer_question(
+            question,
+            req.retrieval_mode,
+            allow_live=req.allow_live,
+            as_of=req.as_of,
+        )
     except HTTPException:
         raise
     except Exception as e:

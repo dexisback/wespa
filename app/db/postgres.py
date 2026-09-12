@@ -115,6 +115,43 @@ class Postgres:
             )
         self.conn.commit()
 
+    def log_answer_facts(self, query_id: str, fact_ids: list[str]):
+        """Record which facts an answer depended on (for impact / stale detection)."""
+        if not fact_ids:
+            return
+        now = datetime.now(timezone.utc)
+        with self.conn.cursor() as cur:
+            for fid in fact_ids:
+                cur.execute(
+                    "INSERT INTO answer_facts(query_id, fact_id, created_at) VALUES (%s,%s,%s)",
+                    (query_id, fid, now),
+                )
+        self.conn.commit()
+
+    def get_answers_for_fact(self, fact_id: str, limit: int = 25) -> list[dict]:
+        """Previous answers that cited this fact."""
+        with self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """SELECT q.query_id, q.question, q.retrieval_mode, q.created_at
+                   FROM answer_facts af JOIN queries q ON q.query_id = af.query_id
+                   WHERE af.fact_id = %s
+                   ORDER BY q.created_at DESC LIMIT %s""",
+                (fact_id, limit),
+            )
+            return cur.fetchall()
+
+    def get_answer_dependencies(self, query_id: str) -> list[str]:
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT fact_id FROM answer_facts WHERE query_id=%s", (query_id,))
+            return [r[0] for r in cur.fetchall()]
+
+    def last_ingestion(self):
+        with self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT run_id, completed_at, documents_added FROM ingestion_logs WHERE documents_added >= 0 ORDER BY completed_at DESC NULLS LAST LIMIT 1"
+            )
+            return cur.fetchone()
+
 
 def new_run_id() -> str:
     return f"run_{uuid.uuid4().hex[:10]}"

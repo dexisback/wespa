@@ -33,11 +33,13 @@ def answer_confidence(facts, passages, conflicts: int) -> tuple[float, str]:
     return round(c, 3), label(c)
 
 
-def _fallback_answer(question: str, facts, passages, mode: str) -> str:
+def _fallback_answer(question: str, facts, passages, mode: str, as_of: str | None = None) -> str:
     """Templated fallback when the LLM is rate-limited or unavailable.
     Still cites every fact and passage so the demo remains functional."""
     lines = []
-    if mode == "vector":
+    if as_of:
+        lines.append(f"Reconstruction of memory as of {as_of[:10]} (LLM unavailable; assembled directly from the historical facts):")
+    elif mode == "vector":
         lines.append("Answer assembled from semantic memory only (no graph traversal used).")
     elif mode == "graph":
         lines.append("Answer assembled from the knowledge-graph traversal only.")
@@ -63,19 +65,20 @@ def _fallback_answer(question: str, facts, passages, mode: str) -> str:
     return "\n".join(lines)
 
 
-def generate_answer(question: str, facts, passages, mode: str) -> tuple[str, float, str]:
+def generate_answer(question: str, facts, passages, mode: str, as_of: str | None = None) -> tuple[str, float, str]:
     """Grounded generation: the LLM must answer from supplied evidence only."""
     conf, conf_label = answer_confidence(facts, passages, conflicts=0)
     weak = (len(facts) + len(passages)) <= 1
 
-    prompt = build_answer_prompt(question, facts, passages, mode)
+    prompt = build_answer_prompt(question, facts, passages, mode, as_of=as_of)
     try:
         if SKIP_LLM:
             raise LLMError("SKIP_LLM is enabled")
         answer = chat(prompt, temperature=0.2, max_tokens=700).strip()
     except LLMError as e:
-        answer = _fallback_answer(question, facts, passages, mode)
-        answer = f"[LLM unavailable; templated answer from evidence]\n{answer}"
+        answer = _fallback_answer(question, facts, passages, mode, as_of=as_of)
+        if not as_of:
+            answer = f"[LLM unavailable; templated answer from evidence]\n{answer}"
         conf = round(conf * 0.9, 3)
         conf_label = label(conf)
 

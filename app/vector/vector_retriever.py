@@ -34,14 +34,18 @@ def add_chunks(chunks: list[Chunk]) -> int:
     return len(fresh)
 
 
-def search(query: str, k: int = 5) -> list[Chunk]:
+def search(query: str, k: int = 5, as_of: str | None = None) -> list[Chunk]:
     col = get_collection()
     if col.count() == 0:
         return []
-    res = col.query(query_texts=[query], n_results=min(k, max(col.count(), 1)))
+    # fetch extra candidates when time-traveling, then filter by publication date
+    fetch_k = min(k * 3, max(col.count(), 1)) if as_of else min(k, max(col.count(), 1))
+    res = col.query(query_texts=[query], n_results=fetch_k)
     out: list[Chunk] = []
     for i, doc_id in enumerate(res["ids"][0]):
         meta = res["metadatas"][0][i]
+        if as_of and (meta.get("published_at") or "") > as_of:
+            continue
         dist = (res.get("distances") or [[0.0]] * 1)[0][i] if res.get("distances") else 0.0
         out.append(
             Chunk(
@@ -56,4 +60,6 @@ def search(query: str, k: int = 5) -> list[Chunk]:
                 similarity=round(max(0.0, 1.0 - float(dist)), 4),
             )
         )
+        if len(out) >= k:
+            break
     return out

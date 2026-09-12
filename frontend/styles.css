@@ -202,12 +202,21 @@ h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
 
 .fixture-menu {
   position: absolute; top: 44px; right: 0; background: var(--panel-2); border: 1px solid var(--border);
-  border-radius: 10px; padding: 6px; min-width: 300px; z-index: 50; box-shadow: 0 12px 40px rgba(0,0,0,.5);
+  border-radius: 10px; padding: 6px; min-width: 340px; z-index: 50; box-shadow: 0 12px 40px rgba(0,0,0,.5);
 }
 .fixture-menu .fx {
   padding: 9px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; color: var(--text-dim);
 }
 .fixture-menu .fx:hover { background: var(--accent-soft); color: var(--text); }
+.fixture-menu .menu-url {
+  display: flex; gap: 6px; padding: 6px; margin-bottom: 4px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.fixture-menu .menu-url input {
+  flex: 1; background: var(--bg-soft); border: 1px solid var(--border); color: var(--text);
+  border-radius: 8px; padding: 8px 10px; font-size: 12.5px; outline: none;
+}
+.btn.tiny { padding: 4px 8px; font-size: 11px; }
 
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
@@ -217,3 +226,99 @@ h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
 }
 .toast.error { border-color: var(--red); color: var(--red); }
 .hidden { display: none !important; }
+
+/* ---------- memory status bar ---------- */
+.mem-status {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: var(--panel); border: 1px solid var(--border-soft); border-radius: 10px;
+  padding: 9px 16px; margin-bottom: 22px; font-size: 12.5px; color: var(--text-dim);
+}
+.mem-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px rgba(74, 222, 128, .7); }
+.ms-title { font-weight: 700; letter-spacing: .12em; font-size: 10.5px; color: var(--text-faint); }
+.ms-item b { color: var(--text); font-variant-numeric: tabular-nums; }
+.ms-item.dim, .dim { color: var(--text-faint); }
+.ms-sep { width: 1px; height: 14px; background: var(--border); }
+
+/* ---------- ask extras ---------- */
+.opt {
+  display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim);
+  cursor: pointer; user-select: none;
+}
+.opt input[type="checkbox"] { accent-color: var(--accent); }
+.opt input[type="date"] {
+  background: var(--panel); border: 1px solid var(--border); color: var(--text);
+  border-radius: 6px; padding: 3px 6px; font-size: 11.5px; font-family: inherit;
+}
+.opt input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.7); }
+
+/* ---------- pipeline + as-of tag ---------- */
+.pipeline { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+.pipeline .stage {
+  background: var(--panel); border: 1px solid var(--border-soft); border-radius: 6px;
+  padding: 4px 9px; font-size: 11px; color: var(--text-dim);
+}
+.pipeline .stage.live { border-color: rgba(74, 222, 128, .4); color: var(--green); }
+.pipeline .stage i { color: var(--text-faint); font-style: normal; }
+.as-of-tag {
+  margin-top: 10px; padding: 8px 12px; border-radius: 8px; font-size: 12.5px;
+  background: rgba(192, 132, 252, .08); border: 1px solid rgba(192, 132, 252, .35); color: var(--purple);
+}
+
+/* ---------- why panel ---------- */
+.why-panel {
+  margin-top: 12px; padding: 14px 16px; border-radius: 10px;
+  background: var(--panel); border: 1px solid var(--border-soft);
+}
+.why-title { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; color: var(--text-faint); margin-bottom: 10px; }
+.why-row { display: grid; grid-template-columns: 170px 1fr 44px; align-items: center; gap: 10px; margin-bottom: 7px; font-size: 12.5px; }
+.why-row .k { color: var(--text-dim); }
+.why-row .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
+.bar { display: inline-block; width: 64px; height: 4px; border-radius: 2px; background: var(--panel-2); overflow: hidden; vertical-align: middle; }
+.bar i { display: block; height: 100%; }
+.bar.big { width: 100%; height: 6px; border-radius: 3px; }
+.why-meta { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+
+/* ---------- timeline (fact drawer) ---------- */
+.timeline { position: relative; margin: 6px 0 4px 8px; padding-left: 22px; border-left: 2px solid var(--border); }
+.tl-item { position: relative; padding-bottom: 18px; }
+.tl-item:last-child { padding-bottom: 4px; }
+.tl-dot {
+  position: absolute; left: -29px; top: 4px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--green); border: 2px solid var(--bg-soft); box-shadow: 0 0 8px rgba(74, 222, 128, .5);
+}
+.tl-item.historical .tl-dot { background: var(--text-faint); box-shadow: none; }
+.tl-item.conflict-tag .tl-dot { background: var(--amber); }
+.tl-body .what { font-size: 13.5px; margin: 3px 0; }
+
+/* ---------- compare modes ---------- */
+.modal-card.wide { width: 860px; max-width: 96vw; }
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.compare-col {
+  background: var(--panel); border: 1px solid var(--border-soft); border-radius: 10px; padding: 14px;
+}
+.compare-col.active { border-color: var(--accent); }
+.compare-col .mode-name { font-weight: 700; font-size: 12px; letter-spacing: .08em; color: var(--accent); margin-bottom: 6px; }
+
+/* ---------- impact panel ---------- */
+.impact-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 11px 12px; border-radius: 8px; border-bottom: 1px solid var(--border-soft);
+  font-size: 13px; cursor: pointer;
+}
+.impact-row:hover { background: var(--accent-soft); }
+.impact-row.static { cursor: default; }
+.impact-row.static:hover { background: transparent; }
+.impact-row .v { flex-shrink: 0; }
+.fact-changed {
+  margin: 14px 0; padding: 16px; border-radius: 10px;
+  background: linear-gradient(135deg, rgba(251, 191, 36, .06), transparent);
+  border: 1px solid rgba(251, 191, 36, .3);
+}
+.fact-changed .what { font-size: 15px; margin: 4px 0; }
+.impact-headline {
+  margin-top: 10px; font-size: 13.5px; font-weight: 600; color: var(--amber);
+}
+.claim { padding: 8px 0; border-bottom: 1px solid var(--border-soft); }
+.claim.winner .what { color: var(--green); }
+.why-list { margin: 6px 0 0 18px; font-size: 12.5px; color: var(--text-dim); }
+.why-list li { margin-bottom: 4px; }

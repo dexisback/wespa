@@ -35,9 +35,12 @@ def match_entities(names: list[str], client=None) -> list[dict]:
     )
 
 
-def retrieve_facts(seed_names: list[str], client=None, max_facts: int = MAX_GRAPH_FACTS) -> dict:
+def retrieve_facts(seed_names: list[str], client=None, max_facts: int = MAX_GRAPH_FACTS, as_of: str | None = None) -> dict:
     """Traverse 1-2 hops from matched entities (both directions) and return
-    evidence facts plus a compact GraphPath payload for visualization."""
+    evidence facts plus a compact GraphPath payload for visualization.
+
+    With `as_of`, traversal is filtered to facts whose validity window covers
+    that timestamp (time-travel / historical reconstruction)."""
     g = _client(client)
     lowered = [n.lower().strip() for n in seed_names if n and n.strip()]
     empty = {"facts": [], "graph_path": GraphPath(), "matched": []}
@@ -49,35 +52,49 @@ def retrieve_facts(seed_names: list[str], client=None, max_facts: int = MAX_GRAP
     src_names = {s["id"]: s["name"] for s in g.run("MATCH (s:Source) RETURN s.id AS id, s.name AS name")}
     names = list(matched_names or lowered)
 
+    def _validity(rel: str) -> str:
+        if not as_of:
+            return ""
+        return (
+            f" AND {rel}.valid_from <= $as_of AND ({rel}.valid_to IS NULL OR {rel}.valid_to > $as_of)"
+        )
+
     def hop1_out():
         return g.run(
-            """MATCH (a:Entity)-[r1]->(b:Entity)
-               WHERE toLower(a.name) IN $names
+            f"""MATCH (a:Entity)-[r1]->(b:Entity)
+               WHERE toLower(a.name) IN $names {_validity("r1")}
                RETURN a, r1, b LIMIT 25""",
-            names=names,
+            names=names, as_of=as_of or "",
         )
 
     def hop1_in():
         return g.run(
-            """MATCH (a:Entity)-[r1]->(b:Entity)
-               WHERE toLower(b.name) IN $names
+            f"""MATCH (a:Entity)-[r1]->(b:Entity)
+               WHERE toLower(b.name) IN $names {_validity("r1")}
                RETURN a, r1, b LIMIT 25""",
-            names=names,
+            names=names, as_of=as_of or "",
         )
 
     def expand(row):
+        val = (
+            " AND r{v}.valid_from <= $as_of AND (r{v}.valid_to IS NULL OR r{v}.valid_to > $as_of)"
+            if as_of
+            else ""
+        )
+        r1_where = f"WHERE r1.relation IS NOT NULL{_validity('r1')}" if as_of else ""
         return g.run(
-            """WITH $aid AS aid, $bid AS bid
-               MATCH (a:Entity {id: aid})-[r1]->(b:Entity {id: bid})
-               OPTIONAL MATCH (b)-[r2]->(c:Entity) WHERE r2.relation IS NOT NULL AND c <> a
+            f"""WITH $aid AS aid, $bid AS bid
+               MATCH (a:Entity {{id: aid}})-[r1]->(b:Entity {{id: bid}})
+               {r1_where}
+               OPTIONAL MATCH (b)-[r2]->(c:Entity) WHERE r2.relation IS NOT NULL AND c <> a{val.format(v="2")}
                WITH a, r1, b, r2, c
-               OPTIONAL MATCH (d:Entity)-[r3]->(b) WHERE r3.relation IS NOT NULL AND d <> a
+               OPTIONAL MATCH (d:Entity)-[r3]->(b) WHERE r3.relation IS NOT NULL AND d <> a{val.format(v="3")}
                WITH a, r1, b, r2, c, r3, d
-               OPTIONAL MATCH (a)-[r4]->(e:Entity) WHERE r4.relation IS NOT NULL AND e <> b
+               OPTIONAL MATCH (a)-[r4]->(e:Entity) WHERE r4.relation IS NOT NULL AND e <> b{val.format(v="4")}
                WITH a, r1, b, r2, c, r3, d, r4, e
-               OPTIONAL MATCH (f:Entity)-[r5]->(a) WHERE r5.relation IS NOT NULL AND f <> b
+               OPTIONAL MATCH (f:Entity)-[r5]->(a) WHERE r5.relation IS NOT NULL AND f <> b{val.format(v="5")}
                RETURN a, r1, b, r2, c, r3, d, r4, e, r5, f LIMIT 40""",
-            aid=row["a"]["id"], bid=row["b"]["id"],
+            aid=row["a"]["id"], bid=row["b"]["id"], as_of=as_of or "",
         )
 
     seen_h1: set[str] = set()
@@ -113,7 +130,7 @@ def retrieve_facts(seed_names: list[str], client=None, max_facts: int = MAX_GRAP
             valid_from=_fmt_dt(rel.get("valid_from")),
             valid_to=_fmt_dt(rel.get("valid_to")),
             extraction_confidence=float(rel.get("extraction_confidence") or 0.8),
-            active=rel.get("valid_to") in (None, ""),
+            active=rel.get("valid_to") in (None, "") or bool(as_of),
             conflict=bool(rel.get("conflict")),
             supersedes=list(rel.get("supersedes") or []),
         )
@@ -124,7 +141,7 @@ def retrieve_facts(seed_names: list[str], client=None, max_facts: int = MAX_GRAP
             label=rel.get("relation", ""),
             confidence=float(rel.get("confidence") or 0.0),
             source_id=rel.get("source_id") or "",
-            active=rel.get("valid_to") in (None, ""),
+            active=rel.get("valid_to") in (None, "") or bool(as_of),
         )
 
     def node_row(prefix):

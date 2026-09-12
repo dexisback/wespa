@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .api.routes_facts import router as facts_router
+from .api.routes_impact import router as impact_router
 from .api.routes_ingest import router as ingest_router
 from .api.routes_query import router as query_router
 from .config import EVAL_RESULTS_PATH, FRONTEND_DIR
@@ -46,10 +47,40 @@ def stats():
         entities = g.run("MATCH (e:Entity) RETURN count(e) AS n")[0]["n"]
         facts = g.run("MATCH ()-[r]->() WHERE r.relation IS NOT NULL RETURN count(r) AS n")[0]["n"]
         active = g.run("MATCH ()-[r]->() WHERE r.relation IS NOT NULL AND r.valid_to IS NULL RETURN count(r) AS n")[0]["n"]
+        historical = g.run("MATCH ()-[r]->() WHERE r.relation IS NOT NULL AND r.valid_to IS NOT NULL RETURN count(r) AS n")[0]["n"]
+        conflicts = g.run("MATCH ()-[r]->() WHERE r.relation IS NOT NULL AND r.conflict = true RETURN count(r) AS n")[0]["n"]
+        corroborated = g.run("MATCH ()-[r]->() WHERE r.relation IS NOT NULL AND size(r.corroborates) > 0 RETURN count(r) AS n")[0]["n"]
         docs = g.run("MATCH (d:Document) RETURN count(d) AS n")[0]["n"]
+        srcs = g.run("MATCH (s:Source) RETURN count(s) AS n")[0]["n"]
     except Exception:
         raise HTTPException(status_code=503, detail="graph store unavailable")
-    return {"entities": entities, "facts": facts, "active_facts": active, "documents": docs}
+    last_ing = None
+    last_doc = None
+    try:
+        last_doc = get_graph().run(
+            "MATCH (d:Document) RETURN d.published_at AS at ORDER BY d.published_at DESC LIMIT 1"
+        )
+        last_doc = last_doc[0]["at"] if last_doc else None
+    except Exception:
+        pass
+    try:
+        row = get_db().last_ingestion()
+        if row:
+            last_ing = {"run_id": row["run_id"], "completed_at": str(row["completed_at"]), "documents_added": row["documents_added"]}
+    except Exception:
+        pass
+    return {
+        "entities": entities,
+        "facts": facts,
+        "active_facts": active,
+        "historical_facts": historical,
+        "conflicts": conflicts,
+        "corroborated_facts": corroborated,
+        "documents": docs,
+        "sources": srcs,
+        "last_ingestion": last_ing,
+        "last_document_at": str(last_doc) if last_doc else None,
+    }
 
 
 @app.get("/eval/results")
@@ -86,6 +117,7 @@ def create_app():
     application.include_router(query_router)
     application.include_router(ingest_router)
     application.include_router(facts_router)
+    application.include_router(impact_router)
     application.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
     )

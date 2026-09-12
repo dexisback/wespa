@@ -96,6 +96,20 @@ class SourceCard(BaseModel):
     confidence: Optional[float] = None
 
 
+class ConfidenceBreakdown(BaseModel):
+    source_reliability: float = 0.0
+    cross_source_agreement: float = 0.0
+    extraction_confidence: float = 0.0
+    supporting_sources: int = 0
+    conflicting_sources: int = 0
+    explanation: str = ""
+
+
+class PipelineStage(BaseModel):
+    name: str
+    detail: str = ""
+
+
 class QueryResult(BaseModel):
     query_id: str = ""
     answer: str
@@ -105,16 +119,24 @@ class QueryResult(BaseModel):
     source_cards: list[SourceCard] = Field(default_factory=list)
     confidence: float = 0.0
     confidence_label: str = ""
+    confidence_breakdown: ConfidenceBreakdown = Field(default_factory=ConfidenceBreakdown)
     conflicts: list[str] = Field(default_factory=list)
     entities_matched: list[str] = Field(default_factory=list)
     retrieval_mode: RetrievalMode = "hybrid"
     latency_ms: float = 0.0
     graph_path: Optional[GraphPath] = None
+    pipeline: list[PipelineStage] = Field(default_factory=list)
+    memory_sufficient: bool = True
+    live_fetch: Optional[dict] = None
+    answer_dependencies: list[str] = Field(default_factory=list)
+    as_of: Optional[str] = None
 
 
 class QueryRequest(BaseModel):
     question: str
     retrieval_mode: RetrievalMode = "hybrid"
+    allow_live: bool = False
+    as_of: Optional[str] = None
 
 
 class FactAction(BaseModel):

@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+def _stable_hash(s: str) -> int:
+    """Deterministic hash (Python's builtin hash() is salted per process)."""
+    import hashlib
+    return int(hashlib.sha256(s.encode()).hexdigest()[:16], 16)
+
+
 import logging
 from datetime import datetime, timezone
 
@@ -190,7 +196,7 @@ class GraphWriter:
 
         if decision["action"] == ACTION_CORROBORATE:
             corroboration_count = len(decision["corroborate_ids"]) + 1
-            fact_id = f"fact_{object_id[-6:]}_{observed_at.strftime('%Y%m%d')}_{abs(hash(document_id + relation + object_id)) % 100000}"
+            fact_id = f"fact_{object_id[-6:]}_{observed_at.strftime('%Y%m%d')}_{_stable_hash(document_id + relation + object_id) % 100000}"
             from ..trust.confidence import confidence as compute_confidence
             conf = compute_confidence(reliability, corroboration_count, extraction_confidence)
             self.write_fact(
@@ -200,7 +206,7 @@ class GraphWriter:
             )
             return {"action": ACTION_CORROBORATE, "fact_id": fact_id, "corroborated": decision["corroborate_ids"]}
 
-        fact_id = f"fact_{abs(hash(f'{document_id}|{relation}|{object_id}|{observed_at.isoformat()}')) % 10**12:012d}"
+        fact_id = f"fact_{_stable_hash(f'{document_id}|{relation}|{object_id}|{observed_at.isoformat()}') % 10**12:012d}"
         from ..trust.confidence import confidence as compute_confidence
 
         if decision["action"] == ACTION_SUPERSEDE:
