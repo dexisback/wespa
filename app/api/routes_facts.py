@@ -94,8 +94,6 @@ def _resolution(w: GraphWriter, current: dict) -> Resolution:
             why.append(f"Corroborated by {active['corroborations']} source(s)")
         if not why:
             why.append("Strongest remaining claim by combined confidence score")
-    if len(claims) > 1:
-        claims_header = True
     return Resolution(competing_claims=claims, why=why)
 
 
@@ -116,9 +114,9 @@ def fact_history(fact_id: str) -> FactHistoryWithResolution:
         try:
             from ..db.postgres import get_db
 
-            audit_rows = get_db().get_fact_audit(fact_id)
-            for v in versions:
-                audit_rows += get_db().get_fact_audit(v["fact_id"])
+            grouped = get_db().get_fact_audit_many(list(all_ids))
+            for fid in sorted(all_ids):
+                audit_rows += grouped.get(fid, [])
         except Exception:
             pass
         seen_audit = set()

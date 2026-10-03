@@ -7,6 +7,7 @@ from ..config import should_skip_llm
 from ..llm import LLMError, chat_json
 from ..extraction.schemas import Entity
 from ..trust.source_weights import entity_id_for
+from ..util import infer_entity_type
 
 log = logging.getLogger("extract.entities")
 
@@ -55,7 +56,7 @@ def _parse_entities(data: dict) -> list[Entity]:
         name = str(e.get("name", "")).strip()
         etype = str(e.get("type", "Organization")).strip()
         if etype not in _TYPES:
-            etype = _infer_type(name)
+            etype = infer_entity_type(name)
         key = name.lower()
         if not name or key in seen:
             continue
@@ -134,10 +135,3 @@ def _fallback_entities(text: str) -> list[Entity]:
 
 _TYPES = ["Person", "Organization", "Product", "Money"]
 _MAX_CHARS = 6000
-
-
-def _infer_type(name: str) -> str:
-    n = name.strip()
-    if n.startswith("$"):
-        return "Money"
-    return "Organization"

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 
 from ..config import should_skip_llm
 from ..llm import LLMError, chat

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import threading
+from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -116,18 +118,8 @@ def eval_run():
 def create_app():
     from fastapi import FastAPI
 
-    application = FastAPI(title="AI Knowledge Memory Engine", version="1.0.0")
-    application.include_router(app)
-    application.include_router(query_router)
-    application.include_router(ingest_router)
-    application.include_router(facts_router)
-    application.include_router(impact_router)
-    application.add_middleware(
-        CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
-    )
-
-    @application.on_event("startup")
-    def startup():
+    @asynccontextmanager
+    async def lifespan(_application):
         try:
             db = get_db()
             db.init_schema()
@@ -137,6 +129,43 @@ def create_app():
             get_graph().ensure_constraints()
         except Exception as e:
             print(f"[startup] neo4j unavailable: {e}")
+        # Warm the embedding model in the background so the first user query
+        # doesn't pay the one-time ONNX model load.
+        import threading as _t
+
+        def _warm_vector():
+            try:
+                from .vector.vector_retriever import search as _vs
+
+                _vs("__memory warmup__", k=1)
+            except Exception:
+                pass
+
+        _t.Thread(target=_warm_vector, name="vector-warmup", daemon=True).start()
+        yield
+        # release pooled/sticky resources so reloads and shutdowns don't leak
+        from .db.postgres import close_pool
+        from .graph.neo4j_client import get_graph as _graph
+        from .http_client import close_client
+
+        try:
+            _graph().close()
+        except Exception:
+            pass
+        close_pool()
+        close_client()
+
+    application = FastAPI(title="AI Knowledge Memory Engine", version="1.0.0", lifespan=lifespan)
+    application.include_router(app)
+    application.include_router(query_router)
+    application.include_router(ingest_router)
+    application.include_router(facts_router)
+    application.include_router(impact_router)
+    # "*" keeps local/demo usage frictionless; set CORS_ORIGINS=https://app.example.com,https://… for deployment
+    origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
+    application.add_middleware(
+        CORSMiddleware, allow_origins=origins, allow_methods=["*"], allow_headers=["*"]
+    )
 
     if (FRONTEND_DIR / "index.html").exists():
         application.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

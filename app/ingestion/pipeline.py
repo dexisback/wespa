@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import uuid
 from datetime import datetime, timezone
 
 from ..config import ALLOWED_RELATIONS, MAX_DOC_CHARS
@@ -122,8 +121,11 @@ def ingest_documents(
                     extraction_confidence=r["extraction_confidence"],
                     reliability=rel_weight,
                 )
-                summary.relationships_added += 1
                 action = result["action"]
+                # A DUPLICATE observation (same source re-reporting the same
+                # triple) wrote no edge, so it is not a new relationship.
+                if action != "DUPLICATE":
+                    summary.relationships_added += 1
                 if action == "SUPERSEDE":
                     summary.facts_superseded += 1
                     for old_id in result.get("closed", []):

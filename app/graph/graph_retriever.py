@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 from ..config import MAX_GRAPH_FACTS, MAX_PATHS
 from ..extraction.schemas import Fact, GraphEdge, GraphNode, GraphPath
-from .neo4j_client import get_graph
+from ..util import cypher_name_key as _cypher_entity_key
+from ..util import match_key as _entity_key
+from .neo4j_client import get_graph, get_source_names
 
 log = logging.getLogger("graph.retriever")
 
@@ -19,39 +22,37 @@ def _fmt_dt(v) -> str | None:
     return v if isinstance(v, str) else getattr(v, "iso_format", lambda: str(v))()
 
 
-def _entity_key(value: str) -> str:
-    """Normalize human-entered entity names for robust graph matching.
-
-    Web material and user questions often differ in hyphens, spaces, or
-    punctuation; matching only on lowercased strings makes equivalent entities miss.
-    """
-    return "".join(ch for ch in (value or "").lower() if ch.isalnum())
-
-
-def _cypher_entity_key(expr: str) -> str:
-    """Cypher equivalent of _entity_key for the common name separators."""
-    for separator in ("-", " ", ".", "_", "'", "&", "/", ":"):
-        escaped = separator.replace("'", "\\'")
-        expr = f"replace({expr}, '{escaped}', '')"
-    return expr
-
-
 def match_entities(names: list[str], client=None) -> list[dict]:
     """Match seed names to graph entities, allowing partial matches
-    ("david" -> "David Luan", "google" -> "Google")."""
+    ("david" -> "David Luan", "google" -> "Google").
+
+    Exact `name_key` equality runs first (index-backed); the computed-key
+    substring scan only runs when exact matching leaves room for more, so the
+    common case avoids a full entity scan."""
     g = _client(client)
     seeds = [_entity_key(n) for n in names if n and n.strip() and len(n.strip()) >= 3]
     seeds = [s for s in seeds if s]
     if not seeds:
         return []
+    exact = g.run(
+        "MATCH (e:Entity) WHERE e.name_key IN $seeds "
+        "RETURN e.id AS id, e.name AS name, e.type AS type LIMIT 20",
+        seeds=seeds,
+    )
+    if len(exact) >= 20:
+        return exact
+    found_ids = {r["id"] for r in exact}
     entity_key = _cypher_entity_key("toLower(e.name)")
-    return g.run(
+    partial = g.run(
         f"""MATCH (e:Entity)
            WITH e, {entity_key} AS ln
            WHERE any(x IN $seeds WHERE ln CONTAINS x OR x CONTAINS ln)
-           RETURN e.id AS id, e.name AS name, e.type AS type LIMIT 20""",
+             AND NOT e.id IN $found_ids
+           RETURN e.id AS id, e.name AS name, e.type AS type LIMIT {20 - len(exact)}""",
         seeds=seeds,
+        found_ids=list(found_ids) or ["__none__"],
     )
+    return exact + partial
 
 
 def retrieve_facts(
@@ -97,7 +98,7 @@ def retrieve_facts(
         )
     matched = list({m["id"]: m for m in matched}.values())
     matched_names = {_entity_key(m["name"]) for m in matched}
-    src_names = {s["id"]: s["name"] for s in g.run("MATCH (s:Source) RETURN s.id AS id, s.name AS name")}
+    src_names = get_source_names(g)
     names = list(matched_names or lowered)
 
     def _validity(rel: str) -> str:
@@ -107,21 +108,14 @@ def retrieve_facts(
             f" AND {rel}.valid_from <= $as_of AND ({rel}.valid_to IS NULL OR {rel}.valid_to > $as_of)"
         )
 
-    def hop1_out():
-        entity_key = _cypher_entity_key("toLower(a.name)")
+    def hop1():
+        """One query for both traversal directions (was two sequential queries)."""
+        key_a = _cypher_entity_key("toLower(a.name)")
+        key_b = _cypher_entity_key("toLower(b.name)")
         return g.run(
             f"""MATCH (a:Entity)-[r1]->(b:Entity)
-               WHERE {entity_key} IN $names {_validity("r1")}
-               RETURN a, r1, b LIMIT 25""",
-            names=names, as_of=as_of or "",
-        )
-
-    def hop1_in():
-        entity_key = _cypher_entity_key("toLower(b.name)")
-        return g.run(
-            f"""MATCH (a:Entity)-[r1]->(b:Entity)
-               WHERE {entity_key} IN $names {_validity("r1")}
-               RETURN a, r1, b LIMIT 25""",
+               WHERE ({key_a} IN $names OR {key_b} IN $names){_validity("r1")}
+               RETURN a, r1, b LIMIT 50""",
             names=names, as_of=as_of or "",
         )
 
@@ -147,7 +141,10 @@ def retrieve_facts(
             aid=row["a"]["id"], bid=row["b"]["id"], as_of=as_of or "",
         )
 
+    # Aggregate accumulators + hop-1 dedupe state
     seen_h1: set[str] = set()
+    seen_pairs: set[tuple[str, str]] = set()
+    expand_rows: list[dict] = []
     facts: dict[str, Fact] = {}
     nodes: dict[str, GraphNode] = {}
     edges: dict[str, GraphEdge] = {}
@@ -189,6 +186,7 @@ def retrieve_facts(
         fid = rel["fact_id"]
         add_node(s_row)
         add_node(o_row)
+        is_active = rel.get("valid_to") in (None, "")
         facts[fid] = Fact(
             fact_id=fid,
             subject_id=s_row["id"] if s_row else "",
@@ -204,8 +202,9 @@ def retrieve_facts(
             valid_from=_fmt_dt(rel.get("valid_from")),
             valid_to=_fmt_dt(rel.get("valid_to")),
             extraction_confidence=float(rel.get("extraction_confidence") or 0.8),
-            active=rel.get("valid_to") in (None, "") or bool(as_of),
+            active=is_active,
             conflict=bool(rel.get("conflict")),
+            corroborations=1 + len(rel.get("corroborates") or []),
             supersedes=list(rel.get("supersedes") or []),
         )
         edges[fid] = GraphEdge(
@@ -215,7 +214,7 @@ def retrieve_facts(
             label=rel.get("relation", ""),
             confidence=float(rel.get("confidence") or 0.0),
             source_id=rel.get("source_id") or "",
-            active=rel.get("valid_to") in (None, "") or bool(as_of),
+            active=is_active,
         )
 
     def node_row(prefix):
@@ -245,16 +244,28 @@ def retrieve_facts(
             add_fact(row["r5"], node_row(f), node_row(a))
             chains.add((f["id"], a["id"], b["id"]))
 
-    for base in (hop1_out, hop1_in):
-        for r in base():
-            fid = (r.get("r1") or {}).get("fact_id")
-            if fid and fid in seen_h1:
-                continue
-            if fid:
-                seen_h1.add(fid)
-            process_row(r)
-            for er in expand(r):
-                process_row(er)
+    # Hop-1 edges: single both-directions query (was two sequential queries),
+    # deduped by fact_id and by node pair for expansion.
+    for r in hop1():
+        fid = (r.get("r1") or {}).get("fact_id")
+        if fid and fid in seen_h1:
+            continue
+        if fid:
+            seen_h1.add(fid)
+        process_row(r)
+        pair = (r["a"]["id"], r["b"]["id"])
+        if pair not in seen_pairs:
+            seen_pairs.add(pair)
+            expand_rows.append(r)
+
+    # Neighborhood expansion is one query per hop-1 pair (up to ~50 when run
+    # serially — the dominant graph latency). Run them concurrently; the Neo4j
+    # driver pool serves the parallel sessions.
+    if expand_rows:
+        with ThreadPoolExecutor(max_workers=min(8, len(expand_rows))) as ex:
+            for expand_result in ex.map(expand, expand_rows):
+                for er in expand_result:
+                    process_row(er)
 
     for m in matched:
         add_node({"id": m["id"], "name": m["name"], "type": m.get("type")})

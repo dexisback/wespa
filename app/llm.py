@@ -1,4 +1,5 @@
 import json
+import threading
 import time
 
 import httpx
@@ -11,22 +12,28 @@ from .config import (
     GEMINI_MODEL,
     GROQ_API_KEY,
     GROQ_MODEL,
+    MIN_CALL_GAP_S,
     OPENROUTER_API_KEY,
     OPENROUTER_MODEL,
 )
+from .http_client import get_client
 
 API_URL = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
-# Free-tier quota is token-based (e.g. 8000 tokens/min): pace ourselves.
-# Now that OpenRouter failover exists, prefer a small gap and let 429s fail
-# over fast instead of sleeping — speed matters more than perfect pacing.
+# Free-tier quota is token-based (e.g. 8000 tokens/min): pace ourselves with a
+# configurable gap (configs/settings.yaml llm.min_call_gap_s). With provider
+# failover in place, 429s fail over fast instead of sleeping long.
 _TOKEN_FLOOR = 1200
 _DEFAULT_RESET_WAIT = 10.0
-_MIN_CALL_GAP = 2.0  # seconds between LLM calls; 429s fail over to OpenRouter instead of waiting
+_MIN_CALL_GAP = MIN_CALL_GAP_S
 _MAX_RESET_WAIT = 5.0  # with OpenRouter as primary, never sleep long around Groq
+# Hard cap on total time spent inside one chat() call across all providers and
+# attempts, so a /query can never hang for minutes when every provider fails.
+_TOTAL_TIMEOUT_S = 90.0
 
+_pace_lock = threading.Lock()
 _last_call_at = 0.0
 
 
@@ -35,12 +42,15 @@ class LLMError(Exception):
 
 
 def _pace():
+    """Serialize pacing across request threads: compute the wait while holding
+    the lock (reserving our slot), then sleep outside it."""
     global _last_call_at
-    now = time.time()
-    elapsed = now - _last_call_at
-    if elapsed < _MIN_CALL_GAP:
-        time.sleep(_MIN_CALL_GAP - elapsed)
-    _last_call_at = time.time()
+    with _pace_lock:
+        now = time.time()
+        wait = _MIN_CALL_GAP - (now - _last_call_at)
+        _last_call_at = now + max(wait, 0.0)
+    if wait > 0:
+        time.sleep(wait)
 
 
 def _parse_reset(value: str) -> float | None:
@@ -66,8 +76,6 @@ def _parse_reset(value: str) -> float | None:
         except ValueError:
             pass
         num = ""
-        if unit == "m":
-            skip = 1
     return total or None
 
 
@@ -94,7 +102,7 @@ def _post(url: str, payload: dict, timeout: float):
         headers["X-Title"] = "AI Knowledge Memory Engine"
     else:
         headers["Authorization"] = f"Bearer {GROQ_API_KEY}"
-    return httpx.post(url, json=payload, headers=headers, timeout=timeout)
+    return get_client().post(url, json=payload, headers=headers, timeout=timeout)
 
 
 def _gemini_payload(messages: list[dict], temperature: float, json_mode: bool, max_tokens: int) -> dict:
@@ -143,7 +151,7 @@ def _content_of(resp) -> str:
     raise LLMError("LLM returned empty content")
 
 
-def chat(messages, temperature=0.2, json_mode=False, max_tokens=1800):
+def chat(messages, temperature=0.2, json_mode=False, max_tokens=1800, total_timeout: float = _TOTAL_TIMEOUT_S):
     if not GEMINI_API_KEY and not GEMINI_API_KEY_FALLBACK and not OPENROUTER_API_KEY and not GROQ_API_KEY:
         raise LLMError("no LLM provider key is set")
     if isinstance(messages, str):
@@ -168,9 +176,15 @@ def chat(messages, temperature=0.2, json_mode=False, max_tokens=1800):
     if GROQ_API_KEY:
         providers.append(("groq", API_URL, GROQ_MODEL, "", ""))
 
+    started = time.monotonic()
     last_error = None
     for _attempt in range(2):
+        if time.monotonic() - started > total_timeout:
+            break
         for name, url, model, api_key, key_name in providers:
+            if time.monotonic() - started > total_timeout:
+                last_error = f"LLM total timeout ({total_timeout:.0f}s) exceeded; last error: {last_error}"
+                break
             payload = {"model": model, **base}
             if name.startswith("gemini"):
                 payload = _gemini_payload(messages, temperature, json_mode, max_tokens)
@@ -183,7 +197,7 @@ def chat(messages, temperature=0.2, json_mode=False, max_tokens=1800):
                         "x-goog-api-key": api_key,
                         "X-Client-Name": key_name or "wespa",
                     }
-                    resp = httpx.post(url.format(model=model), json=payload, headers=headers, timeout=30)
+                    resp = get_client().post(url.format(model=model), json=payload, headers=headers, timeout=30)
                 else:
                     resp = _post(url, payload, 60)
                 if resp.status_code == 200:

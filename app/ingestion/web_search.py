@@ -1,27 +1,20 @@
 from __future__ import annotations
 
-def _stable_hash(s: str) -> int:
-    """Deterministic hash (Python's builtin hash() is salted per process)."""
-    import hashlib
-    return int(hashlib.sha256(s.encode()).hexdigest()[:16], 16)
-
-
 import logging
 import re
 import time
 from datetime import datetime, timezone
 from urllib.parse import quote, unquote, urlparse
 
-import httpx
-
+from ..http_client import get_client
 from ..ingestion.pipeline import ingest_documents
 from ..ingestion.rss_ingester import fetch_article
+from ..util import stable_hash
 
 log = logging.getLogger("live.retrieval")
 
-_DDG_ENDPOINT = "https://html.duckduckgo.com/html/"
+_DDGLITE_ENDPOINT = "https://html.duckduckgo.com/html/"
 _WIKI_API = "https://en.wikipedia.org/w/api.php"
-_UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 _MAX_CHARS = 6000
 _BAD_HOSTS = ("duckduckgo.com", "google.", "bing.")
 
@@ -30,10 +23,9 @@ def search_web(query: str, max_results: int = 3) -> list[dict]:
     """DuckDuckGo HTML search. Returns [{url, title}] — no API key required.
     Falls back to an empty list on any failure (caller degrades gracefully)."""
     try:
-        resp = httpx.post(
-            _DDG_ENDPOINT,
+        resp = get_client().post(
+            _DDGLITE_ENDPOINT,
             data={"q": query, "kl": "wt-wt"},
-            headers={"User-Agent": _UA},
             timeout=4,
             follow_redirects=True,
         )
@@ -75,13 +67,12 @@ def wikipedia_fallback(query: str) -> dict | None:
     """Reliable co-provider: the best-matching Wikipedia article as clean plaintext.
     Returns {url, title, text} or None."""
     try:
-        r = httpx.get(
+        r = get_client().get(
             _WIKI_API,
             params={
                 "action": "query", "format": "json", "list": "search",
                 "srsearch": query, "srlimit": 1,
             },
-            headers={"User-Agent": _UA},
             timeout=4,
         )
         r.raise_for_status()
@@ -89,13 +80,12 @@ def wikipedia_fallback(query: str) -> dict | None:
         if not hits:
             return None
         title = hits[0]["title"]
-        r2 = httpx.get(
+        r2 = get_client().get(
             _WIKI_API,
             params={
                 "action": "query", "format": "json", "prop": "extracts",
                 "explaintext": 1, "redirects": 1, "titles": title,
             },
-            headers={"User-Agent": _UA},
             timeout=4,
         )
         r2.raise_for_status()
@@ -140,15 +130,17 @@ def live_retrieval(question: str, max_docs: int = 3) -> dict:
 
     def _fetch(r):
         try:
-            title, text = fetch_article(r["url"], timeout=5)
+            title, text, published = fetch_article(r["url"], timeout=5)
             if len(text) < 200:
                 return None
             return {
-                "document_id": f"doc_live_{_stable_hash(r['url']) % 10**10:010d}",
+                "document_id": f"doc_live_{stable_hash(r['url']) % 10**10:010d}",
                 "title": title or r["title"],
                 "url": r["url"],
                 "source": _source_name(r["url"]),
-                "published_at": now.isoformat(),
+                # the page's own publish metadata, not 'now' — a wrong observed_at
+                # would corrupt the supersede/conflict temporal window
+                "published_at": (published or now).isoformat(),
                 "text": text[:_MAX_CHARS],
             }
         except Exception as e:
@@ -168,10 +160,10 @@ def live_retrieval(question: str, max_docs: int = 3) -> dict:
     # the normal multi-article path.
     if not docs:
         wiki = wikipedia_fallback(question)
-        if wiki and not any(d["url"] == wiki["url"] for d in docs):
+        if wiki:
             docs.append(
                 {
-                    "document_id": f"doc_live_{_stable_hash(wiki['url']) % 10**10:010d}",
+                    "document_id": f"doc_live_{stable_hash(wiki['url']) % 10**10:010d}",
                     "title": wiki["title"],
                     "url": wiki["url"],
                     "source": "Wikipedia",

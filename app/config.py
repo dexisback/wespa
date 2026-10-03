@@ -31,6 +31,7 @@ POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "memoryengine2025")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", SETTINGS["llm"]["model"])
 SKIP_LLM = os.getenv("SKIP_LLM", "false").lower() in ("true", "1", "yes")
+MIN_CALL_GAP_S = float(SETTINGS["llm"].get("min_call_gap_s", 0.5))
 _skip_llm_override: ContextVar[bool | None] = ContextVar("skip_llm_override", default=None)
 
 
@@ -59,6 +60,8 @@ TOP_K_PASSAGES = SETTINGS["retrieval"]["top_k_passages"]
 MAX_GRAPH_FACTS = SETTINGS["retrieval"]["max_graph_facts"]
 MAX_HOPS = SETTINGS["retrieval"]["max_hops"]
 MAX_PATHS = SETTINGS["retrieval"]["max_paths"]
+QUERY_STOP_WORDS = frozenset(SETTINGS["retrieval"].get("query_stop_words", []))
+RELEVANCE_STOP_WORDS = frozenset(SETTINGS["retrieval"].get("relevance_stop_words", []))
 SUPERSEDE_WINDOW_DAYS = SETTINGS["temporal"]["supersede_window_days"]
 MAX_DOC_CHARS = SETTINGS["extraction"]["max_document_chars"]
 ENTITY_TYPES = SETTINGS["extraction"]["entity_types"]

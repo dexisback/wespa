@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
@@ -74,7 +73,10 @@ def ingest(req: dict):
             fixture = req.get("fixture")
             if not fixture:
                 raise HTTPException(status_code=422, detail="fixture name required")
-            path = FIXTURES_DIR / fixture
+            path = (FIXTURES_DIR / fixture).resolve()
+            # containment check: a crafted name must not escape the fixtures dir
+            if not path.is_relative_to(FIXTURES_DIR.resolve()):
+                raise HTTPException(status_code=400, detail="invalid fixture name")
             if not path.exists():
                 raise HTTPException(status_code=404, detail=f"fixture {fixture} not found")
             docs = load_documents_from_file(path)
@@ -82,10 +84,13 @@ def ingest(req: dict):
             url = req.get("url")
             if not url:
                 raise HTTPException(status_code=422, detail="url required")
+            from ..fetch_guard import SSRFBlocked
             from ..ingestion.rss_ingester import ingest_url
 
             try:
                 docs = [ingest_url(url, source=req.get("source"))]
+            except SSRFBlocked as e:
+                raise HTTPException(status_code=400, detail=f"url blocked: {e}")
             except Exception as direct_error:
                 # Publishers may block automated readers with a 403/paywall.
                 # Keep URL ingest useful for the demo by learning from accessible

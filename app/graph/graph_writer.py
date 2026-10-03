@@ -1,21 +1,17 @@
 from __future__ import annotations
 
-def _stable_hash(s: str) -> int:
-    """Deterministic hash (Python's builtin hash() is salted per process)."""
-    import hashlib
-    return int(hashlib.sha256(s.encode()).hexdigest()[:16], 16)
-
-
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 
 from ..trust.contradiction import (
     ACTION_CONFLICT,
     ACTION_CORROBORATE,
+    ACTION_DUPLICATE,
     ACTION_SUPERSEDE,
     classify_fact,
 )
-from .neo4j_client import get_graph
+from ..util import match_key, stable_hash
+from .neo4j_client import get_graph, invalidate_source_names
 
 log = logging.getLogger("graph.writer")
 
@@ -35,6 +31,7 @@ class GraphWriter:
             "MERGE (s:Source {id:$sid}) SET s.name=$name, s.reliability=$rel",
             sid=source_id, name=name, rel=reliability,
         )
+        invalidate_source_names()
 
     def upsert_document(self, document_id: str, title: str, url: str, published_at: str, source_id: str):
         self.g.run(
@@ -54,11 +51,15 @@ class GraphWriter:
         )
 
     def upsert_entity(self, entity_id: str, name: str, etype: str):
+        # `name_key` is the indexed match key used by retrieval seeds; writing it
+        # here keeps new entities matchable without a full-graph scan.
         self.g.run(
             """MERGE (e:Entity {id:$eid})
-               ON CREATE SET e.name=$name, e.type=$etype
-               ON MATCH SET e.name = CASE WHEN e.name IS NULL OR size(e.name) < size($name) THEN $name ELSE e.name END""",
-            eid=entity_id, name=name, etype=etype,
+               ON CREATE SET e.name=$name, e.type=$etype, e.name_key=$nkey
+               ON MATCH SET
+                 e.name = CASE WHEN e.name IS NULL OR size(e.name) < size($name) THEN $name ELSE e.name END,
+                 e.name_key = coalesce(e.name_key, $nkey)""",
+            eid=entity_id, name=name, etype=etype, nkey=match_key(name),
         )
 
     def entity_exists(self, entity_id: str) -> bool:
@@ -138,7 +139,9 @@ class GraphWriter:
         return rows[0] if rows else None
 
     def get_fact_versions(self, fact_id: str) -> list[dict]:
-        """Walk the supersedes chain in both directions to return every version."""
+        """Walk the supersedes chain in both directions to return every version.
+        The chain is expanded breadth-first, then all versions are fetched in a
+        single batched query instead of one query per version."""
         forward = self.g.run(
             """MATCH (s:Entity)-[r]->(o:Entity)
                WHERE r.fact_id=$fid OR $fid IN r.supersedes
@@ -157,13 +160,33 @@ class GraphWriter:
             nxt = [r["fact_id"] for r in rows if r["fact_id"] not in seen]
             seen.update(nxt)
             frontier = nxt
-        versions = []
-        for fid in seen:
-            f = self.get_fact(fid)
-            if f:
-                versions.append(f)
-        versions.sort(key=lambda f: f.get("valid_from") or "")
-        return versions
+        return [f for f in self.get_facts_batch(sorted(seen)) if f]
+
+    def get_facts_batch(self, fact_ids: list[str]) -> list[dict]:
+        """Same fields as get_fact, for many facts in one query."""
+        if not fact_ids:
+            return []
+        rows = self.g.run(
+            """UNWIND $ids AS fid
+               MATCH (s:Entity)-[r]->(o:Entity)
+               WHERE r.fact_id = fid
+               OPTIONAL MATCH (src:Source {id: r.source_id})
+               RETURN s.id AS subject_id, s.name AS subject_name,
+                      o.id AS object_id, o.name AS object_name,
+                      r.fact_id AS fact_id, r.relation AS relation,
+                      r.confidence AS confidence, r.extraction_confidence AS extraction_confidence,
+                      r.source_id AS source_id, coalesce(src.name, r.source_id) AS source_name,
+                      r.document_id AS document_id, r.observed_at AS observed_at,
+                      r.valid_from AS valid_from, r.valid_to AS valid_to,
+                      r.conflict AS conflict, r.supersedes AS supersedes, r.corroborates AS corroborates
+               LIMIT 500""",
+            ids=list(fact_ids),
+        )
+        # UNWIND preserves list order; keep only the first row per fact_id.
+        out: dict[str, dict] = {}
+        for r in rows:
+            out.setdefault(r.get("fact_id"), r)
+        return [out[fid] for fid in fact_ids if fid in out]
 
     def ingest_fact(
         self,
@@ -200,11 +223,20 @@ class GraphWriter:
                 }
                 for e in existing
             ],
+            source_id=source_id,
         )
 
+        if decision["action"] == ACTION_DUPLICATE:
+            # The same source already reported this exact triple; writing another
+            # edge would inflate evidence counts without adding cross-source trust.
+            return {"action": ACTION_DUPLICATE, "fact_id": decision["duplicate_ids"][0]}
+
         if decision["action"] == ACTION_CORROBORATE:
+            # corroborate_ids only contains facts from OTHER sources (classify_fact
+            # dedups same-source observations), so this count is a true
+            # distinct-source agreement count.
             corroboration_count = len(decision["corroborate_ids"]) + 1
-            fact_id = f"fact_{object_id[-6:]}_{observed_at.strftime('%Y%m%d')}_{_stable_hash(document_id + relation + object_id) % 100000}"
+            fact_id = f"fact_{object_id[-6:]}_{observed_at.strftime('%Y%m%d')}_{stable_hash(document_id + relation + object_id) % 100000}"
             from ..trust.confidence import confidence as compute_confidence
             conf = compute_confidence(reliability, corroboration_count, extraction_confidence)
             self.write_fact(
@@ -214,7 +246,7 @@ class GraphWriter:
             )
             return {"action": ACTION_CORROBORATE, "fact_id": fact_id, "corroborated": decision["corroborate_ids"]}
 
-        fact_id = f"fact_{_stable_hash(f'{document_id}|{relation}|{object_id}|{observed_at.isoformat()}') % 10**12:012d}"
+        fact_id = f"fact_{stable_hash(f'{document_id}|{relation}|{object_id}|{observed_at.isoformat()}') % 10**12:012d}"
         from ..trust.confidence import confidence as compute_confidence
 
         if decision["action"] == ACTION_SUPERSEDE:

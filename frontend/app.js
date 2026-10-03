@@ -113,9 +113,17 @@ function stopStatus(err) {
 }
 
 /* ---------- ask ---------- */
+let queryAbort = null;
+
 async function ask(question, isModeSwitch) {
   if (!question) return;
   lastQuestion = question;
+  // Cancel any in-flight query so a slow older response can never overwrite a
+  // newer one (e.g. after a fast mode-toggle re-ask).
+  if (queryAbort) queryAbort.abort();
+  const controller = new AbortController();
+  queryAbort = controller;
+  const isCurrent = () => queryAbort === controller;
   $("btn-ask").disabled = true;
   startStatus(currentMode);
   if (isModeSwitch) { $("result").classList.remove("hidden"); $("empty").classList.add("hidden"); }
@@ -130,6 +138,7 @@ async function ask(question, isModeSwitch) {
         skip_llm: $("opt-skip-llm").checked,
         as_of: null,
       }),
+      signal: controller.signal,
     });
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
@@ -154,10 +163,12 @@ async function ask(question, isModeSwitch) {
     refreshMemStatus();
     if (data.live_retrieval_used) loadDocuments();
   } catch (e) {
+    if (!isCurrent()) return; // superseded by a newer ask; let it own the UI
+    if (e.name === "AbortError") { stopStatus(); return; }
     stopStatus(e.message || "Query failed.");
-    toast(e.message || "Query failed.", true);
+    toast(esc(e.message) || "Query failed.", true);
   } finally {
-    $("btn-ask").disabled = false;
+    if (isCurrent()) $("btn-ask").disabled = false;
   }
 }
 
@@ -179,7 +190,7 @@ function renderResult(data) {
   const badge = $("conf-badge");
   badge.className = `badge ${confClass(data.confidence_label)}`;
   const pct = Math.round((data.confidence || 0) * 100);
-  badge.innerHTML = `Confidence&nbsp; ${data.confidence_label || "—"} <span class="bar"><i style="width:${pct}%;background:currentColor"></i></span> ${pct}%`;
+  badge.innerHTML = `Confidence&nbsp; ${esc(data.confidence_label || "—")} <span class="bar"><i style="width:${pct}%;background:currentColor"></i></span> ${pct}%`;
   $("conf-detail").textContent = `0.5·source trust + 0.3·corroboration + 0.2·extraction`;
 
   const mu = $("memory-updated");
@@ -210,7 +221,9 @@ function renderResult(data) {
   const conflictsEl = $("conflicts");
   if (data.conflicts && data.conflicts.length) {
     conflictsEl.classList.remove("hidden");
-    conflictsEl.innerHTML = `⚠ The sources disagree on: ${data.conflicts.join(" · ")}. Both versions are retained in memory; confidence reduced.`;
+    // conflict strings contain entity names extracted from (possibly live-web)
+    // sources — never inject them unescaped
+    conflictsEl.innerHTML = `⚠ The sources disagree on: ${data.conflicts.map(esc).join(" · ")}. Both versions are retained in memory; confidence reduced.`;
   } else conflictsEl.classList.add("hidden");
 
   const wp = $("why-panel");
@@ -268,7 +281,7 @@ function renderSources(data) {
     el.innerHTML = `
       <div class="name">${esc(c.source_name)}${c.is_new ? '<span class="new-badge">NEW</span>' : ""}</div>
       ${c.title ? `<div class="title">${esc(c.title)}</div>` : ""}
-      <div class="meta"><span>${date ? "Retrieved " + date : ""}</span><span>${c.url ? "article ↗" : ""}</span></div>
+      <div class="meta"><span>${date ? esc("Retrieved " + date) : ""}</span><span>${c.url ? "article ↗" : ""}</span></div>
       ${bar}`;
     if (c.url) el.querySelector(".meta").onclick = () => window.open(c.url, "_blank");
     wrap.appendChild(el);
@@ -343,7 +356,8 @@ function renderGraph(data) {
       font: { color: onPrimary || inPath ? "#e8ecef" : "#b0b6bc", size: onPrimary ? 13 : 12, face: "Inter, sans-serif" },
       size: n.type === "Person" ? (onPrimary ? 17 : 14) : undefined,
       borderWidth: onPrimary ? 2.5 : inPath ? 2 : 1,
-      title: `${n.label} · ${n.type}${onPrimary ? " · on answer path" : inPath ? " · in traversal" : ""}`,
+      // vis renders tooltip titles as HTML — escape web-derived labels
+      title: `${esc(n.label)} · ${esc(n.type)}${onPrimary ? " · on answer path" : inPath ? " · in traversal" : ""}`,
     };
   }));
 
@@ -361,7 +375,7 @@ function renderGraph(data) {
       width: hot ? 2.5 : 1,
       font: { size: 9.5, color: hot ? "#b7c7d9" : "#7e878d", background: "none" },
       smooth: { type: "curvedCW", roundness: 0.12 },
-      title: `${e.label} · confidence ${Math.round((e.confidence || 0) * 100)}%${e.active ? "" : " · historical"}`,
+      title: `${esc(e.label)} · confidence ${Math.round((e.confidence || 0) * 100)}%${e.active ? "" : " · historical"}`,
       _primary: onPrimary,
     };
   }));
@@ -397,7 +411,7 @@ async function openFactHistory(factId) {
   $("drawer").classList.remove("hidden");
   $("drawer-body").innerHTML = `<div class="status" style="color:var(--accent)"><span class="spinner"></span>Loading fact history...</div>`;
   try {
-    const resp = await fetch(`${API}/facts/${factId}`);
+    const resp = await fetch(`${API}/facts/${encodeURIComponent(factId)}`);
     if (!resp.ok) throw new Error("Fact not found");
     const data = await resp.json();
     renderHistory(data);
@@ -532,7 +546,7 @@ async function openImpact(factId) {
   $("impact-body").innerHTML = `<div class="status" style="color:var(--accent)"><span class="spinner"></span>Computing impact of knowledge changes...</div>`;
   try {
     if (factId) {
-      const data = await (await fetch(`${API}/impact/fact/${factId}`)).json();
+      const data = await (await fetch(`${API}/impact/fact/${encodeURIComponent(factId)}`)).json();
       renderImpactFact(data, factId);
       return;
     }

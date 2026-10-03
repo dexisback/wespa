@@ -2,18 +2,26 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
-from ..config import TOP_K_PASSAGES, reset_skip_llm_override, set_skip_llm_override, should_skip_llm
+from ..config import (
+    QUERY_STOP_WORDS,
+    RELEVANCE_STOP_WORDS,
+    TOP_K_PASSAGES,
+    reset_skip_llm_override,
+    set_skip_llm_override,
+    should_skip_llm,
+)
 from ..db.postgres import get_db
 from ..extraction.schemas import Fact, GraphPath, QueryResult, SourceCard
 from ..graph.graph_retriever import retrieve_facts
 from ..rag.answer_generator import answer_confidence, generate_answer
 from ..trust.confidence import label
-from ..trust.source_weights import DEFAULT_RELIABILITY, reliability, source_id_for
+from ..trust.source_weights import DEFAULT_RELIABILITY, reliability
 from ..vector.vector_retriever import search as vector_search
 
 log = logging.getLogger("rag.hybrid")
@@ -42,35 +50,63 @@ def extract_query_entities(question: str) -> list[str]:
         names = [str(n).strip() for n in data.get("entities", []) if str(n).strip()]
         if names:
             return names[:6]
-    except (LLMError, Exception):
-        pass
+    except LLMError as e:
+        log.debug("query entity extraction fell back to heuristics: %s", e)
     return _fallback_entities(question)
 
 
-_STOP_TOKENS = {
-    "which", "what", "who", "when", "where", "how", "company", "companies", "people",
-    "person", "startup", "startups", "after", "leaving", "left", "found", "founded",
-    "become", "connected", "they", "that", "this", "have", "was", "were", "did",
-    "does", "between", "march", "june", "april", "there", "their", "about", "with",
-    "latest", "update", "updates", "recent", "current", "currently", "right", "today",
-    "italian", "prime", "minister",
-}
+# Question words that must never become graph seeds. Tuned demo vocabulary lives
+# in configs/settings.yaml (retrieval.query_stop_words) so it is editable
+# without a code change.
+_STOP_TOKENS = QUERY_STOP_WORDS
 
 
 def _fallback_entities(question: str) -> list[str]:
-    candidates = set()
+    """Heuristic query entity extraction, priority-ordered:
+    capitalized multi-word pairs, then capitalized singles, then lowercase
+    words (people often type proper names in lowercase; Neo4j matching is
+    partial and case-insensitive so these are safe but weakest seeds)."""
     words = re.findall(r"[A-Za-z][\w'\-]*", question)
+    pairs: list[str] = []
+    capitalized: list[str] = []
+    lowercase: list[str] = []
     for i, w in enumerate(words):
+        nxt = words[i + 1] if i + 1 < len(words) else ""
         if w[:1].isupper() and len(w) >= 4 and w.lower() not in _STOP_TOKENS:
-            pair = f"{w} {words[i + 1]}" if i + 1 < len(words) and words[i + 1][:1].isupper() else None
-            candidates.add(w)
-            if pair:
-                candidates.add(pair)
+            capitalized.append(w)
+            if nxt[:1].isupper():
+                pairs.append(f"{w} {nxt}")
         elif len(w) >= 4 and w.lower() not in _STOP_TOKENS:
-            # People often type proper names in lowercase. Neo4j performs
-            # partial, case-insensitive matching, so these are safe seeds.
-            candidates.add(w)
-    return sorted(candidates)[:6]
+            lowercase.append(w)
+    candidates: list[tuple[int, int, str]] = (
+        [(0, -len(p), p) for p in pairs]
+        + [(1, -len(w), w) for w in capitalized]
+        + [(2, -len(w), w) for w in lowercase]
+    )
+    candidates.sort()
+    out: list[str] = []
+    seen: set[str] = set()
+    for _, _, cand in candidates:
+        key = cand.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(cand)
+        if len(out) >= 6:
+            break
+    return out
+
+
+def _graph_result(result: dict) -> dict:
+    """Normalize a retrieve_facts() result into bundle keys."""
+    return {
+        "facts": result["facts"],
+        "graph_path": result["graph_path"],
+        "matched": result["matched"],
+        "chain_fact_ids": result.get("chain_fact_ids", []),
+        "graph_debug": result.get("graph_debug", {}),
+        "used_graph": True,
+    }
 
 
 def retrieve(
@@ -81,54 +117,44 @@ def retrieve(
     document_ids: list[str] | None = None,
 ) -> dict:
     """Three genuinely different retrieval paths."""
-    bundle = {"facts": [], "passages": [], "graph_path": GraphPath(), "matched": [], "chain_fact_ids": [], "used_graph": False, "used_vector": False, "graph_debug": {}}
-
-    if mode in ("vector", "hybrid"):
-        bundle["passages"] = vector_search(question, k=TOP_K_PASSAGES, as_of=as_of)
-        bundle["used_vector"] = True
-
-    if mode in ("graph", "hybrid"):
-        seeds = entity_seeds if entity_seeds is not None else extract_query_entities(question)
-        result = retrieve_facts(seeds, as_of=as_of, document_ids=document_ids)
-        bundle["facts"] = result["facts"]
-        bundle["graph_path"] = result["graph_path"]
-        bundle["matched"] = result["matched"]
-        bundle["chain_fact_ids"] = result.get("chain_fact_ids", [])
-        bundle["graph_debug"] = result.get("graph_debug", {})
-        bundle["used_graph"] = True
-        if bundle["facts"]:
-            bundle["facts"] = _rank_facts(bundle["facts"], question, bundle["chain_fact_ids"])
+    bundle: dict = {"facts": [], "passages": [], "graph_path": GraphPath(), "matched": [], "chain_fact_ids": [], "used_graph": False, "used_vector": False, "graph_debug": {}}
 
     if mode == "hybrid":
+        # The entity-extraction LLM call and the vector search are independent
+        # I/O — overlap them so the pipeline pays max(LLM, vector), not the sum.
+        with ThreadPoolExecutor(max_workers=2) as ex:
+            vec_fut = ex.submit(vector_search, question, TOP_K_PASSAGES, as_of)
+            ent_fut = ex.submit(extract_query_entities, question) if entity_seeds is None else None
+            bundle["passages"] = vec_fut.result()
+            seeds = entity_seeds if entity_seeds is not None else ent_fut.result()
+        bundle["used_vector"] = True
+        result = retrieve_facts(seeds, as_of=as_of, document_ids=document_ids)
+        bundle.update(_graph_result(result))
+        if bundle["facts"]:
+            bundle["facts"] = _rank_facts(bundle["facts"], question, bundle["chain_fact_ids"])
         bundle["facts"], bundle["passages"] = _merge_rank(bundle["facts"], bundle["passages"], question, bundle["chain_fact_ids"])
+        return bundle
+
+    if mode == "vector":
+        bundle["passages"] = vector_search(question, k=TOP_K_PASSAGES, as_of=as_of)
+        bundle["used_vector"] = True
+        return bundle
+
+    # mode == "graph"
+    seeds = entity_seeds if entity_seeds is not None else extract_query_entities(question)
+    result = retrieve_facts(seeds, as_of=as_of, document_ids=document_ids)
+    bundle.update(_graph_result(result))
+    if bundle["facts"]:
+        bundle["facts"] = _rank_facts(bundle["facts"], question, bundle["chain_fact_ids"])
     return bundle
 
 
-_RELEVANCE_STOP = {
-    # question words
-    "what", "which", "who", "when", "where", "how", "about", "does", "did", "didnt", "give",
-    "show", "tell", "tellall", "list", "please", "there", "their", "with", "that", "this",
-    "from", "have", "after", "before", "people", "company", "companies", "they", "them",
-    "many", "much", "some", "into", "onto", "were", "was", "are", "been", "being", "also",
-    "the", "and", "for", "his", "her", "its", "him", "she", "our", "own", "out", "off",
-    "per", "via", "can", "will", "why", "yet", "nor", "but", "one", "two", "not", "get",
-    "has", "had", "over", "under", "more", "most", "very", "than", "then", "them", "they",
-    # months / time
-    "september", "october", "august", "january", "february", "march", "april", "may",
-    "june", "july", "november", "december", "current", "currently", "latest", "recent",
-    "today", "yesterday", "year", "month",
-    # generic category words — they appear in off-topic evidence too
-    "model", "models", "lineup", "listings", "full", "complete", "entire", "all", "every",
-    "top", "best", "popular", "main", "major", "new", "brand", "brands", "range", "series",
-    "price", "prices", "sale", "sell", "market", "segment", "type", "types", "kind", "kinds",
-    "name", "names", "known", "know", "info", "information", "details", "detail",
-    "car", "cars", "motor", "motors", "vehicle", "vehicles", "truck", "trucks",
-    # query framing / generic intent words — these must not make unrelated
-    # documents look topical (for example car articles for a bike question).
-    "latest", "current", "currently", "right", "now", "today", "recent", "recently",
-    "model", "models", "lineup", "launch", "launched", "launches", "launching",
-    "give", "all", "list", "listing", "tell", "show", "find", "go",
-}
+# Topical-relevance stop words. Loaded from configs/settings.yaml
+# (retrieval.relevance_stop_words): question words, months, and generic category
+# words ("model", "car", "latest") that appear in off-topic evidence just as
+# often, plus query framing words that must not make unrelated documents look
+# topical (for example car articles for a bike question).
+_RELEVANCE_STOP = RELEVANCE_STOP_WORDS
 
 
 def _salient_tokens(question: str) -> list[str]:
@@ -501,38 +527,34 @@ def _answer_question_impl(question: str, mode: str = "hybrid", allow_live: bool 
 
     def _re_retrieve():
         nonlocal query_entities
-        # Entity extraction is an LLM call. Reusing it across the live-fetch
-        # recheck removes one avoidable network round trip.
-        if mode in ("graph", "hybrid") and query_entities is None:
-            query_entities = extract_query_entities(question)
+        # With entity_seeds=None the retrieve() layer overlaps the entity-
+        # extraction LLM call with the vector search; the seeds it computed are
+        # recovered from graph_debug and reused across live-fetch re-retrievals
+        # (no second LLM round trip).
+        b = retrieve(question, mode, as_of=as_of, entity_seeds=query_entities)
+        if query_entities is None and mode in ("graph", "hybrid"):
+            query_entities = (b.get("graph_debug") or {}).get("seed_names") or None
         if mode == "hybrid":
-            # Graph lookup and vector lookup are independent I/O operations.
-            # Running them together lowers the critical path for every query.
-            with ThreadPoolExecutor(max_workers=2) as ex:
-                graph_future = ex.submit(retrieve, question, "graph", as_of, query_entities)
-                vector_future = ex.submit(retrieve, question, "vector", as_of)
-                initial_graph = graph_future.result()
-                vector_bundle = vector_future.result()
-            document_ids = list({p.document_id for p in vector_bundle["passages"] if p.document_id})
-            graph_path = initial_graph.get("graph_path")
+            document_ids = list({p.document_id for p in b["passages"] if p.document_id})
+            graph_path = b.get("graph_path")
             if document_ids and (not graph_path or not graph_path.nodes):
-                # Use the actual retrieved documents as graph seeds. This
-                # recovers entities even when query entity extraction is weak.
-                b = retrieve(
-                    question, "graph", as_of, query_entities, document_ids=document_ids
+                # Weak entity seeds: re-seed the traversal from the actual
+                # retrieved documents (one extra graph pass in the miss case).
+                log.info(
+                    "query graph debug: seeds=%s docs=%s -> re-seeding traversal from retrieved documents",
+                    query_entities, document_ids,
                 )
-            else:
-                b = initial_graph
-            log.info(
-                "query graph debug: seeds=%s docs=%s nodes=%s edges=%s facts=%s",
-                query_entities, document_ids, len(b.get("graph_path").nodes) if b.get("graph_path") else 0,
-                len(b.get("graph_path").edges) if b.get("graph_path") else 0, len(b.get("facts", [])),
-            )
-            b["passages"] = vector_bundle["passages"]
-            b["used_vector"] = True
-            b["facts"], b["passages"] = _merge_rank(b["facts"], b["passages"], question, b["chain_fact_ids"])
-        else:
-            b = retrieve(question, mode, as_of=as_of, entity_seeds=query_entities)
+                b2 = retrieve(question, "graph", as_of=as_of, entity_seeds=query_entities, document_ids=document_ids)
+                for key in ("facts", "graph_path", "matched", "chain_fact_ids", "graph_debug"):
+                    b[key] = b2[key]
+                b["facts"], b["passages"] = _merge_rank(b["facts"], b["passages"], question, b["chain_fact_ids"])
+        log.info(
+            "query graph debug: seeds=%s nodes=%s edges=%s facts=%s",
+            query_entities,
+            len(b["graph_path"].nodes) if b.get("graph_path") else 0,
+            len(b["graph_path"].edges) if b.get("graph_path") else 0,
+            len(b.get("facts", [])),
+        )
         b["question"] = question
         return b
 
@@ -642,11 +664,9 @@ def _answer_question_impl(question: str, mode: str = "hybrid", allow_live: bool 
     sources: list[str] = []
     src_names: dict[str, str] = {}
     try:
-        from ..graph.neo4j_client import get_graph
+        from ..graph.neo4j_client import get_source_names
 
-        src_names = {
-            s["id"]: s["name"] for s in get_graph().run("MATCH (s:Source) RETURN s.id AS id, s.name AS name")
-        }
+        src_names = get_source_names()
     except Exception:
         pass
     fetched_urls = {
@@ -708,12 +728,20 @@ def _answer_question_impl(question: str, mode: str = "hybrid", allow_live: bool 
         answer_dependencies=dependencies,
         as_of=as_of,
     )
-    try:
-        db = get_db()
-        db.log_query(query_id, question, mode, latency_ms)
-        db.log_answer_facts(query_id, dependencies)
-    except Exception as e:
-        log.warning("query logging skipped: %s", e)
+    # Query logging happens off the response path — the caller should not wait
+    # on PostgreSQL round trips after the answer is ready.
+    def _log_query_async() -> None:
+        def _write():
+            try:
+                db = get_db()
+                db.log_query(query_id, question, mode, latency_ms)
+                db.log_answer_facts(query_id, dependencies)
+            except Exception as e:
+                log.warning("query logging skipped: %s", e)
+
+        threading.Thread(target=_write, name=f"qlog-{query_id}", daemon=True).start()
+
+    _log_query_async()
     return result
 
 

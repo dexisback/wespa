@@ -7,6 +7,213 @@ retrieval:
   max_graph_facts: 40
   max_hops: 2
   max_paths: 6
+  # Words that never become query entity seeds (demo-vocabulary lives here so it
+  # is editable without a code change). Multi-word capitalized pairs are built
+  # from adjacent tokens at runtime.
+  query_stop_words:
+    - which
+    - what
+    - who
+    - when
+    - where
+    - how
+    - company
+    - companies
+    - people
+    - person
+    - startup
+    - startups
+    - after
+    - leaving
+    - left
+    - found
+    - founded
+    - become
+    - connected
+    - they
+    - that
+    - this
+    - have
+    - was
+    - were
+    - did
+    - does
+    - between
+    - march
+    - june
+    - april
+    - there
+    - their
+    - about
+    - with
+    - latest
+    - update
+    - updates
+    - recent
+    - current
+    - currently
+    - right
+    - today
+    - italian
+    - prime
+    - minister
+  # Content words excluded from topical-relevance scoring because they appear in
+  # off-topic evidence just as often (question words, months, generic category words).
+  relevance_stop_words:
+    - what
+    - which
+    - who
+    - when
+    - where
+    - how
+    - about
+    - does
+    - did
+    - didnt
+    - give
+    - show
+    - tell
+    - tellall
+    - list
+    - please
+    - there
+    - their
+    - with
+    - that
+    - this
+    - from
+    - have
+    - after
+    - before
+    - people
+    - company
+    - companies
+    - they
+    - them
+    - many
+    - much
+    - some
+    - into
+    - onto
+    - were
+    - was
+    - are
+    - been
+    - being
+    - also
+    - the
+    - and
+    - for
+    - his
+    - her
+    - its
+    - him
+    - she
+    - our
+    - own
+    - out
+    - off
+    - per
+    - via
+    - can
+    - will
+    - why
+    - yet
+    - nor
+    - but
+    - one
+    - two
+    - not
+    - get
+    - has
+    - had
+    - over
+    - under
+    - more
+    - most
+    - very
+    - than
+    - then
+    - september
+    - october
+    - august
+    - january
+    - february
+    - march
+    - april
+    - may
+    - june
+    - july
+    - november
+    - december
+    - current
+    - currently
+    - latest
+    - recent
+    - recently
+    - today
+    - yesterday
+    - year
+    - month
+    - model
+    - models
+    - lineup
+    - listings
+    - full
+    - complete
+    - entire
+    - all
+    - every
+    - top
+    - best
+    - popular
+    - main
+    - major
+    - new
+    - brand
+    - brands
+    - range
+    - series
+    - price
+    - prices
+    - sale
+    - sell
+    - market
+    - segment
+    - type
+    - types
+    - kind
+    - kinds
+    - name
+    - names
+    - known
+    - know
+    - info
+    - information
+    - details
+    - detail
+    - car
+    - cars
+    - motor
+    - motors
+    - vehicle
+    - vehicles
+    - truck
+    - trucks
+    # query framing / generic intent words — these must not make unrelated
+    # documents look topical (for example car articles for a bike question).
+    - right
+    - now
+    - launch
+    - launched
+    - launches
+    - launching
+    - listing
+    - tell
+    - show
+    - find
+    - go
+
 
 temporal:
   supersede_window_days: 7
@@ -15,6 +222,9 @@ llm:
   model: openai/gpt-oss-120b
   extraction_temperature: 0.0
   answer_temperature: 0.2
+  # Minimum seconds between OpenAI-compatible LLM calls. Free-tier token pacing:
+  # with provider failover in place, a small gap is enough — 429s fail over fast.
+  min_call_gap_s: 0.5
 
 extraction:
   max_document_chars: 6000

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from app.graph.graph_writer import GraphWriter  # noqa: F401 (interface reference)
 from app.trust.contradiction import classify_fact
 from app.trust.confidence import confidence as compute_confidence
-from app.trust.source_weights import reliability
+from app.trust.source_weights import reliability as _reliability
 
 
 class FakeGraphWriter:
@@ -49,14 +49,24 @@ class FakeGraphWriter:
     def ingest_fact(self, *, subject_id, subject_name, relation, object_id, object_name,
                     subject_type="Organization", object_type="Organization", source_id,
                     source_name="", document_id="", observed_at, extraction_confidence,
-                    reliability_weight=None, **_):
+                    reliability=None, reliability_weight=None, **_):
         self.upsert_entity(subject_id, subject_name, subject_type)
         self.upsert_entity(object_id, object_name, object_type)
-        rel = reliability_weight if reliability_weight is not None else reliability(source_name)
-        decision = classify_fact(subject_id, relation, object_id, observed_at, self.get_active_facts(subject_id, relation))
+        rel = (
+            reliability_weight if reliability_weight is not None
+            else reliability if reliability is not None
+            else _reliability(source_name)
+        )
+        decision = classify_fact(
+            subject_id, relation, object_id, observed_at,
+            self.get_active_facts(subject_id, relation),
+            source_id=source_id,
+        )
         observed_iso = observed_at.isoformat() if isinstance(observed_at, datetime) else str(observed_at)
         fact_id = f"fact_{len(self.facts) + 1:05d}"
 
+        if decision["action"] == "DUPLICATE":
+            return {"action": "DUPLICATE", "fact_id": decision["duplicate_ids"][0]}
         if decision["action"] == "CORROBORATE":
             conf = compute_confidence(rel, len(decision["corroborate_ids"]) + 1, extraction_confidence)
         elif decision["action"] == "CONFLICT":

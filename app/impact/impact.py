@@ -156,16 +156,11 @@ def recent_changes(limit: int = 10) -> dict:
     """Latest supersede/conflict events with their impact counts."""
     g = GraphWriter()
     db = get_db()
-    with db.conn.cursor() as cur:
-        cur.execute(
-            """SELECT fact_id, action, old_value, new_value, timestamp
-               FROM fact_audit WHERE action IN ('SUPERSEDES','SUPERSEDED','CONFLICT')
-               ORDER BY timestamp DESC LIMIT %s""",
-            (limit,),
-        )
-        rows = cur.fetchall()
+    rows = db.recent_fact_audits(["SUPERSEDES", "SUPERSEDED", "CONFLICT"], limit=limit)
     events = []
-    for fact_id, action, old_value, new_value, ts in rows:
+    for row in rows:
+        fact_id, action = row["fact_id"], row["action"]
+        old_value, new_value, ts = row["old_value"], row["new_value"], row["timestamp"]
         try:
             fact = g.get_fact(fact_id)
         except Exception:
@@ -197,10 +192,11 @@ def recent_changes(limit: int = 10) -> dict:
 
 def _answers_for(fact_id: str) -> list[dict]:
     """Reuse impact_for_fact's answer logic without recursion."""
-    fact = GraphWriter().get_fact(fact_id)
+    w = GraphWriter()
+    fact = w.get_fact(fact_id)
     if not fact:
         return []
-    successor = _successor(GraphWriter().g, fact)
+    successor = _successor(w.g, fact)
     db = get_db()
     out = []
     for r in db.get_answers_for_fact(fact_id):
@@ -220,19 +216,10 @@ def answer_freshness(query_id: str) -> dict:
     db = get_db()
     deps = db.get_answer_dependencies(query_id)
     if not deps:
-        with db.conn.cursor() as cur:
-            cur.execute("SELECT question FROM queries WHERE query_id=%s", (query_id,))
-            row = cur.fetchone()
         return {"ok": False, "error": "no recorded dependencies for this answer"}
 
     g = GraphWriter()
-    rows = db.get_answers_for_fact(deps[0]) if deps else []
-    question = ""
-    with db.conn.cursor() as cur:
-        cur.execute("SELECT question FROM queries WHERE query_id=%s", (query_id,))
-        got = cur.fetchone()
-        if got:
-            question = got[0]
+    question = db.get_question(query_id)
 
     checks = []
     stale = 0

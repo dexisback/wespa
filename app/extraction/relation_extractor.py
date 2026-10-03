@@ -6,6 +6,7 @@ import re
 from ..config import should_skip_llm
 from ..llm import LLMError, chat_json
 from ..trust.source_weights import entity_id_for
+from ..util import infer_entity_type as _infer_type
 
 log = logging.getLogger("extract.relations")
 
@@ -254,13 +255,6 @@ def _first_capitalized(sent: str) -> str:
 
 
 _MAX_CHARS = 6000
-
-
-def _infer_type(name: str) -> str:
-    n = name.strip()
-    if n.startswith("$"):
-        return "Money"
-    return "Organization"
 
 
 __all__ = ["extract_relations", "normalize_relation", "entity_id_for"]
