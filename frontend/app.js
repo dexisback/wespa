@@ -15,6 +15,48 @@ const EXAMPLES = [
   "What is Safe Superintelligence valued at?",
 ];
 
+const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)");
+const CAN_HOVER = window.matchMedia("(hover: hover) and (pointer: fine)");
+
+function attachTilt(el, maxDeg = 2.4) {
+  if (!el || el._tilt || REDUCED_MOTION.matches || !CAN_HOVER.matches) return;
+  el._tilt = true;
+  el.classList.add("tilt");
+  let raf = null;
+  el.addEventListener("pointermove", (e) => {
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    el.style.setProperty("--mx", `${(px + 0.5) * 100}%`);
+    el.style.setProperty("--my", `${(py + 0.5) * 100}%`);
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = null;
+      el.style.transform =
+        `perspective(1100px) rotateX(${(-py * maxDeg).toFixed(2)}deg) rotateY(${(px * maxDeg).toFixed(2)}deg)`;
+    });
+  });
+  el.addEventListener("pointerleave", () => {
+    el.style.transform = "";
+  });
+}
+
+function positionTogglePill() {
+  const wrap = $("mode-toggle"), active = wrap?.querySelector("button.active");
+  if (!wrap || !active) return;
+  wrap.style.setProperty("--tx", `${active.offsetLeft}px`);
+  wrap.style.setProperty("--tw", `${active.offsetWidth}px`);
+}
+
+function hideOverlay(el) {
+  if (!el || el.classList.contains("hidden") || el.classList.contains("leaving")) return;
+  el.classList.add("leaving");
+  setTimeout(() => {
+    el.classList.remove("leaving");
+    el.classList.add("hidden");
+  }, 160);
+}
+
 function init() {
   const chips = $("chips");
   EXAMPLES.forEach((q) => {
@@ -33,9 +75,9 @@ function init() {
   });
 
   $("drawer-close").onclick = closeDrawer;
-  $("eval-close").onclick = () => $("eval-panel").classList.add("hidden");
-  $("compare-close").onclick = () => $("compare-panel").classList.add("hidden");
-  $("impact-close").onclick = () => $("impact-panel").classList.add("hidden");
+  $("eval-close").onclick = () => hideOverlay($("eval-panel"));
+  $("compare-close").onclick = () => hideOverlay($("compare-panel"));
+  $("impact-close").onclick = () => hideOverlay($("impact-panel"));
   $("btn-eval").onclick = openEval;
   $("btn-compare").onclick = openCompare;
   $("btn-impact").onclick = openImpact;
@@ -43,9 +85,49 @@ function init() {
   $("btn-ingest-url").onclick = ingestUrl;
   $("opt-skip-llm").onchange = () => { if (lastQuestion) ask(lastQuestion, true); };
   $("btn-why").onclick = toggleWhy;
-  document.addEventListener("click", (e) => {
-    if (!e.target.closest(".ingest-wrap")) $("fixture-menu").classList.add("hidden");
+
+  // Backdrop click to dismiss modals
+  document.querySelectorAll(".modal").forEach((m) => {
+    m.addEventListener("click", (e) => {
+      if (e.target === m) hideOverlay(m);
+    });
   });
+
+  // Escape key closes topmost overlay
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      const modals = [ $("eval-panel"), $("compare-panel"), $("impact-panel") ];
+      const openModal = modals.find((m) => m && !m.classList.contains("hidden") && !m.classList.contains("leaving"));
+      if (openModal) {
+        hideOverlay(openModal);
+        return;
+      }
+      const drawer = $("drawer");
+      if (drawer && !drawer.classList.contains("hidden") && !drawer.classList.contains("leaving")) {
+        hideOverlay(drawer);
+        return;
+      }
+      const fixtureMenu = $("fixture-menu");
+      if (fixtureMenu && !fixtureMenu.classList.contains("hidden") && !fixtureMenu.classList.contains("leaving")) {
+        hideOverlay(fixtureMenu);
+      }
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".ingest-wrap")) hideOverlay($("fixture-menu"));
+  });
+
+  // 3D pointer tilt on answer card
+  attachTilt(document.querySelector(".answer-card"));
+
+  // Sliding mode toggle pill
+  positionTogglePill();
+  window.addEventListener("resize", positionTogglePill);
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(positionTogglePill);
+  }
+
   refreshMemStatus();
   loadDocuments();
   setInterval(refreshMemStatus, 30000);
@@ -54,6 +136,7 @@ function init() {
 function setMode(mode) {
   currentMode = mode;
   document.querySelectorAll("#mode-toggle button").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
+  positionTogglePill();
   if (lastQuestion) ask(lastQuestion, true);
 }
 
@@ -284,6 +367,7 @@ function renderSources(data) {
       <div class="meta"><span>${date ? esc("Retrieved " + date) : ""}</span><span>${c.url ? "article ↗" : ""}</span></div>
       ${bar}`;
     if (c.url) el.querySelector(".meta").onclick = () => window.open(c.url, "_blank");
+    attachTilt(el);
     wrap.appendChild(el);
   });
 }
@@ -338,7 +422,7 @@ function renderGraph(data) {
   });
 
   const TYPE_COLORS = {
-    Person: "#b8a9c9", Organization: "#9ab0c9", Product: "#9fb7a7", Money: "#c4ae82",
+    Person: "#b78bff", Organization: "#8b95ff", Product: "#67e8f9", Money: "#fbbf24",
   };
 
   const nodes = new vis.DataSet(gp.nodes.map((n) => {
@@ -349,11 +433,11 @@ function renderGraph(data) {
       label: n.label,
       shape: n.type === "Person" ? "dot" : "box",
       color: {
-        background: onPrimary ? "#344556" : inPath ? "#2a343e" : "#23282d",
-        border: onPrimary ? "#b7c7d9" : inPath ? "#9ab0c9" : "#59636d",
-        highlight: { background: "#405466", border: "#c9d5e1" },
+        background: onPrimary ? "#232a45" : inPath ? "#1b1f2e" : "#15171c",
+        border: onPrimary ? (TYPE_COLORS[n.type] || "#9aa5ff") : inPath ? "#4c5878" : "#2c313a",
+        highlight: { background: "#2a3050", border: "#aab4ff" },
       },
-      font: { color: onPrimary || inPath ? "#e8ecef" : "#b0b6bc", size: onPrimary ? 13 : 12, face: "Inter, sans-serif" },
+      font: { color: onPrimary || inPath ? "#eef0f4" : "#9aa3b0", size: onPrimary ? 13 : 12, face: "Inter, sans-serif" },
       size: n.type === "Person" ? (onPrimary ? 17 : 14) : undefined,
       borderWidth: onPrimary ? 2.5 : inPath ? 2 : 1,
       // vis renders tooltip titles as HTML — escape web-derived labels
@@ -371,9 +455,9 @@ function renderGraph(data) {
       label: e.label,
       arrows: "to",
       physics: false,
-      color: { color: hot ? "#9ab0c9" : "#4b555f", highlight: "#c9d5e1" },
+      color: { color: hot ? "#8b95ff" : "#39404c", highlight: "#aab4ff" },
       width: hot ? 2.5 : 1,
-      font: { size: 9.5, color: hot ? "#b7c7d9" : "#7e878d", background: "none" },
+      font: { size: 9.5, color: hot ? "#b3bcff" : "#6b7280", background: "none" },
       smooth: { type: "curvedCW", roundness: 0.12 },
       title: `${esc(e.label)} · confidence ${Math.round((e.confidence || 0) * 100)}%${e.active ? "" : " · historical"}`,
       _primary: onPrimary,
@@ -393,9 +477,9 @@ function renderGraph(data) {
   const baseWidth = 3;
   anim.forEach((e, i) => {
     setTimeout(() => {
-      edges.update({ id: e.id, color: { color: "#e8ecef" }, width: baseWidth + 1.5, font: { size: 10.5, color: "#e8ecef", background: "none" } });
+      edges.update({ id: e.id, color: { color: "#e6e9ff" }, width: baseWidth + 1.5, font: { size: 10.5, color: "#e6e9ff", background: "none" } });
       setTimeout(() => {
-        edges.update({ id: e.id, color: { color: "#9ab0c9" }, width: baseWidth });
+        edges.update({ id: e.id, color: { color: "#8b95ff" }, width: baseWidth });
       }, 380);
     }, 420 + i * 380);
   });
@@ -408,7 +492,7 @@ function renderGraph(data) {
 
 /* ---------- fact history drawer (timeline + contradiction resolution) ---------- */
 async function openFactHistory(factId) {
-  $("drawer").classList.remove("hidden");
+  $("drawer").classList.remove("hidden", "leaving");
   $("drawer-body").innerHTML = `<div class="status" style="color:var(--accent)"><span class="spinner"></span>Loading fact history...</div>`;
   try {
     const resp = await fetch(`${API}/facts/${encodeURIComponent(factId)}`);
@@ -477,13 +561,13 @@ function confLabelOf(c) {
 }
 
 function closeDrawer() {
-  $("drawer").classList.add("hidden");
+  hideOverlay($("drawer"));
 }
 
 /* ---------- mode comparison ---------- */
 async function openCompare() {
   const q = lastQuestion || $("question").value.trim();
-  $("compare-panel").classList.remove("hidden");
+  $("compare-panel").classList.remove("hidden", "leaving");
   if (!q) {
     $("compare-body").innerHTML = `<p style="color:var(--text-dim)">Ask a question first, then compare how each retrieval mode handles it.</p>`;
     return;
@@ -542,7 +626,7 @@ async function loadDocuments() {
 
 /* ---------- knowledge impact ---------- */
 async function openImpact(factId) {
-  $("impact-panel").classList.remove("hidden");
+  $("impact-panel").classList.remove("hidden", "leaving");
   $("impact-body").innerHTML = `<div class="status" style="color:var(--accent)"><span class="spinner"></span>Computing impact of knowledge changes...</div>`;
   try {
     if (factId) {
@@ -610,7 +694,7 @@ function renderImpactFact(data, factId) {
 
 /* ---------- evaluation ---------- */
 async function openEval() {
-  $("eval-panel").classList.remove("hidden");
+  $("eval-panel").classList.remove("hidden", "leaving");
   $("eval-body").innerHTML = `<div class="status" style="color:var(--accent)"><span class="spinner"></span>Loading evaluation...</div>`;
   try {
     let data = await (await fetch(`${API}/eval/results`)).json();
@@ -654,14 +738,14 @@ function renderEval(data) {
 /* ---------- ingestion ---------- */
 async function toggleFixtureMenu() {
   const menu = $("fixture-menu");
-  if (!menu.classList.contains("hidden")) { menu.classList.add("hidden"); return; }
-  menu.classList.remove("hidden");
+  if (!menu.classList.contains("hidden")) { hideOverlay(menu); return; }
+  menu.classList.remove("hidden", "leaving");
   $("fixture-list").innerHTML = `<div class="fx">loading…</div>`;
   try {
     const data = await (await fetch(`${API}/ingest/fixtures`)).json();
     $("fixture-list").innerHTML = data.fixtures.map((f) => `<div class="fx" data-f="${esc(f.file)}">${esc(f.title)}</div>`).join("") || `<div class="fx">no fixtures</div>`;
     $("fixture-list").querySelectorAll(".fx[data-f]").forEach((el) => {
-      el.onclick = () => { menu.classList.add("hidden"); runIngest({ mode: "fixture", fixture: el.dataset.f }).catch(() => {}); };
+      el.onclick = () => { hideOverlay(menu); runIngest({ mode: "fixture", fixture: el.dataset.f }).catch(() => {}); };
     });
   } catch {
     $("fixture-list").innerHTML = `<div class="fx">failed to load fixtures</div>`;
@@ -675,7 +759,7 @@ async function ingestUrl() {
   $("fixture-list").innerHTML = `<div class="status" style="color:var(--accent)"><span class="spinner"></span>Fetching article… cleaning… extracting…</div>`;
   try {
     const data = await runIngest({ mode: "url", url });
-    $("fixture-menu").classList.add("hidden");
+    hideOverlay($("fixture-menu"));
     $("ingest-url").value = "";
     toast(data?.message || "Memory updated.");
   } catch (e) {

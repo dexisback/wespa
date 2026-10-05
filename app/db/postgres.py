@@ -72,6 +72,13 @@ class Postgres:
     def __init__(self):
         self.init_schema()
 
+    @property
+    def conn(self):
+        """Compatibility property for legacy callers/tests expecting a direct connection."""
+        if not hasattr(self, "_compat_conn") or self._compat_conn is None or getattr(self._compat_conn, "closed", True):
+            self._compat_conn = get_pool().getconn()
+        return self._compat_conn
+
     def init_schema(self):
         with _conn() as conn, conn.cursor() as cur:
             for stmt in DDL:

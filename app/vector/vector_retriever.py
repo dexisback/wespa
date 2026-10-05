@@ -47,6 +47,8 @@ def search(query: str, k: int = 5, as_of: str | None = None) -> list[Chunk]:
         if as_of and (meta.get("published_at") or "") > as_of:
             continue
         dist = (res.get("distances") or [[0.0]] * 1)[0][i] if res.get("distances") else 0.0
+        # Collection is created with cosine space: 1 - distance == cosine similarity.
+        similarity = round(max(0.0, min(1.0, 1.0 - float(dist))), 4)
         out.append(
             Chunk(
                 chunk_id=doc_id,
@@ -57,7 +59,7 @@ def search(query: str, k: int = 5, as_of: str | None = None) -> list[Chunk]:
                 title=meta.get("title", ""),
                 url=meta.get("url", ""),
                 published_at=meta.get("published_at") or None,
-                similarity=round(max(0.0, 1.0 - float(dist)), 4),
+                similarity=similarity,
             )
         )
         if len(out) >= k:

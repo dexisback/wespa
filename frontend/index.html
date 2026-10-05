@@ -3,11 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#07080a">
 <title>Memory Engine — AI Knowledge Memory</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c8aff'/%3E%3Cstop offset='1' stop-color='%23a78bfa'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='4' y='4' width='24' height='24' rx='7' fill='url(%23g)'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%2307080a'/%3E%3C/svg%3E">
+<link rel="preload" href="vendor/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="styles.css">
 <script src="vendor/vis-network.min.js"></script>
 </head>
 <body>
+<div class="aurora" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span></div>
 <div class="shell">
   <header>
     <div class="brand">
@@ -70,7 +74,7 @@
   </section>
 
   <section id="result" class="result hidden">
-    <div class="answer-card">
+    <div class="answer-card tilt">
       <div class="answer-head">
         <div class="badge" id="conf-badge">CONFIDENCE —</div>
         <div id="conf-detail" class="conf-detail"></div>

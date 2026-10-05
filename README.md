@@ -139,7 +139,8 @@ confidence = 0.50 * source_reliability
 clamped to `[0, 1]`, where:
 
 - `source_reliability` — per-source weight from `configs/settings.yaml` (e.g. Reuters 0.95, TechCrunch 0.88, unknown 0.6)
-- `cross_source_agreement` — **0.5** single source, **0.75** two sources, **1.0** for 3+ corroborating sources
+- `cross_source_agreement` — **0.5** single source, **0.75** two sources, **1.0** for 3+ corroborating sources;
+  only **distinct sources** count (a source repeating its own claim is a duplicate observation, not corroboration)
 - `extraction_confidence` — the LLM extractor's own stated certainty for the triple
 
 Conflicting facts keep both versions, get flagged, and reduce effective answer confidence (×0.8).
@@ -151,7 +152,8 @@ Decision rules (implemented in `app/trust/contradiction.py` + `app/graph/tempora
 
 | Situation | Action | Guarantee |
 |---|---|---|
-| Same `(subject, relation, object)` seen again | **CORROBORATE** | agreement ↑, new observation edge, provenance kept |
+| Same `(subject, relation, object)` seen again **from a different source** | **CORROBORATE** | distinct-source agreement ↑, new observation edge, provenance kept |
+| Same `(subject, relation, object)` from the **same source** | **DUPLICATE** | no edge written — one outlet repeating itself must not inflate cross-source agreement |
 | Same `(subject, relation)`, different object, observed **later** (> 7 days) | **SUPERSEDE** | old edge gets `valid_to`, new edge inserted, `supersedes` chain links them, audit row written |
 | Same `(subject, relation)`, different object, observed **≤ 7 days apart** | **CONFLICT** | both versions stay active, both flagged, confidence penalized |
 | Nothing related | **NEW** | plain insert with `valid_from` |
@@ -197,13 +199,17 @@ Base URL: `http://localhost:8000` (FastAPI serves the UI at `/`).
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/query` | POST | `{question, retrieval_mode: vector\|graph\|hybrid}` → full `QueryResult` incl. `graph_path` |
-| `/ingest` | POST | `{mode: fixture\|url\|raw, ...}` → `IngestionSummary` |
+| `/query` | POST | `{question, retrieval_mode: vector\|graph\|hybrid, allow_live?, as_of?, skip_llm?}` → full `QueryResult` incl. `graph_path` |
+| `/ingest` | POST | `{mode: fixture\|url\|raw, ...}` → `IngestionSummary` (URL fetches are SSRF-guarded) |
 | `/ingest/fixtures` | GET | list available demo fixtures for live ingestion |
-| `/facts/{fact_id}` | GET | fact + version history + audit trail |
+| `/documents` | GET | every document in memory (seed corpus, manual ingests, AI-learned live retrievals) |
+| `/facts/{fact_id}` | GET | fact + version history + audit trail + contradiction resolution |
+| `/impact/recent` | GET | latest supersede/conflict events with per-event stale-answer counts |
+| `/impact/fact/{fact_id}` | GET | what a fact change affects: successor, dependent facts, previously given answers |
+| `/impact/answer/{query_id}` | GET | freshness re-check of a previous answer against current memory |
 | `/eval/results` | GET | latest measured metrics |
 | `/eval/run` | POST | run the evaluation suite (retrieval-only for Hit@5/Recall@5 + grounded answers for multi-hop) |
-| `/health` | GET | postgres / neo4j / chroma / groq_key / all_ready |
+| `/health` | GET | postgres / neo4j / chroma / LLM keys / all_ready |
 | `/stats` | GET | graph counts: entities, facts, active facts, documents |
 
 Example:
@@ -363,13 +369,22 @@ All knobs live in `configs/settings.yaml` + `.env`:
 chunking:      {size: 900, overlap: 120}
 retrieval:     {top_k_passages: 5, max_graph_facts: 40, max_hops: 2, max_paths: 6}
 temporal:      {supersede_window_days: 7}
-llm:           {model: openai/gpt-oss-120b}
+llm:           {model: openai/gpt-oss-120b, min_call_gap_s: 0.5}   # provider failover chain: Gemini → Gemini fallback → OpenRouter → Groq
 trust:
   source_weights: {Reuters: 0.95, TechCrunch: 0.88, ...}
 extraction:
   allowed_relations: [FOUNDED, WORKED_AT, LEFT, LEADS, ACQUIRED, INVESTED_IN, RELEASED, RAISED, VALUED_AT]
   entity_types: [Person, Organization, Product, Money]
 ```
+
+Also configurable: `retrieval.query_stop_words` / `retrieval.relevance_stop_words` (the demo-tuned
+vocabulary used for heuristic entity seeding and topical-relevance scoring), `CORS_ORIGINS` in `.env`
+(comma-separated; defaults to `*` for local dev), and `SKIP_LLM` for the offline demo path.
+
+**Rebuilding after upgrades:** entity IDs are canonicalized at ingest ("OpenAI Inc." → `ent_openai`) and
+the vector store uses cosine distance. Existing deployments should rebuild once to unify IDs and similarity
+scores: `rm -rf data/chroma && python scripts/build_memory.py` (Neo4j `name_key` backfill happens
+automatically at startup).
 
 ## Scope boundaries
 

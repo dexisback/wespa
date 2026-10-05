@@ -50,14 +50,29 @@ def health():
 def stats():
     g = get_graph()
     try:
-        entities = g.run("MATCH (e:Entity) RETURN count(e) AS n")[0]["n"]
-        facts = g.run("MATCH ()-[r]->() WHERE r.relation IS NOT NULL RETURN count(r) AS n")[0]["n"]
-        active = g.run("MATCH ()-[r]->() WHERE r.relation IS NOT NULL AND r.valid_to IS NULL RETURN count(r) AS n")[0]["n"]
-        historical = g.run("MATCH ()-[r]->() WHERE r.relation IS NOT NULL AND r.valid_to IS NOT NULL RETURN count(r) AS n")[0]["n"]
-        conflicts = g.run("MATCH ()-[r]->() WHERE r.relation IS NOT NULL AND r.conflict = true RETURN count(r) AS n")[0]["n"]
-        corroborated = g.run("MATCH ()-[r]->() WHERE r.relation IS NOT NULL AND size(r.corroborates) > 0 RETURN count(r) AS n")[0]["n"]
-        docs = g.run("MATCH (d:Document) RETURN count(d) AS n")[0]["n"]
-        srcs = g.run("MATCH (s:Source) RETURN count(s) AS n")[0]["n"]
+        # One aggregate round trip instead of eight sequential queries.
+        row = g.run(
+            """CALL () { MATCH (e:Entity) RETURN count(e) AS entities }
+               CALL () {
+                   MATCH ()-[r]->() WHERE r.relation IS NOT NULL
+                   RETURN count(r) AS facts,
+                          sum(CASE WHEN r.valid_to IS NULL THEN 1 ELSE 0 END) AS active,
+                          sum(CASE WHEN r.valid_to IS NOT NULL THEN 1 ELSE 0 END) AS historical,
+                          sum(CASE WHEN r.conflict = true THEN 1 ELSE 0 END) AS conflicts,
+                          sum(CASE WHEN size(r.corroborates) > 0 THEN 1 ELSE 0 END) AS corroborated
+               }
+               CALL () { MATCH (d:Document) RETURN count(d) AS docs }
+               CALL () { MATCH (s:Source) RETURN count(s) AS sources }
+               RETURN entities, facts, active, historical, conflicts, corroborated, docs, sources"""
+        )[0]
+        entities = row["entities"]
+        facts = row["facts"]
+        active = row["active"]
+        historical = row["historical"]
+        conflicts = row["conflicts"]
+        corroborated = row["corroborated"]
+        docs = row["docs"]
+        srcs = row["sources"]
     except Exception:
         raise HTTPException(status_code=503, detail="graph store unavailable")
     last_ing = None

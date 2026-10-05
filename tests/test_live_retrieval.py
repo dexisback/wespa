@@ -15,7 +15,7 @@ import pytest
 import app.ingestion.web_search as web_search
 import app.rag.answer_generator as answer_gen
 import app.rag.hybrid_retriever as hybrid
-from app.extraction.schemas import Chunk, Fact
+from app.extraction.schemas import Chunk, Fact, GraphNode, GraphPath
 from app.rag.hybrid_retriever import _sufficiency, answer_question
 
 from .fakes import FakeDB
@@ -98,7 +98,8 @@ def test_insufficient_with_fetch_triggers_learning(monkeypatch):
         if retrievals["n"] == 1:
             return {"facts": [], "graph_path": None, "matched": []}
         # after "learning", the memory now contains the answer
-        return {"facts": [_fact(rel="LAUNCHED", s="Maruti Suzuki", o="Alto K10", fid="f_new")], "graph_path": None, "matched": ["Maruti Suzuki"]}
+        gp = GraphPath(nodes=[GraphNode(id="ent_maruti", label="Maruti Suzuki", type="Organization")], edges=[], paths=[["ent_maruti"]])
+        return {"facts": [_fact(rel="LAUNCHED", s="Maruti Suzuki", o="Alto K10", fid="f_new")], "graph_path": gp, "matched": ["Maruti Suzuki"]}
 
     def fake_vector_search(q, k=5, as_of=None):
         vs["n"] += 1
