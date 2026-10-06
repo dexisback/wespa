@@ -49,12 +49,19 @@ def extract_entities(text: str) -> list[Entity]:
     return _fallback_entities(text)
 
 
-def _parse_entities(data: dict) -> list[Entity]:
+def _parse_entities(data: dict | list) -> list[Entity]:
     entities = []
     seen = set()
-    for e in data.get("entities", []):
-        name = str(e.get("name", "")).strip()
-        etype = str(e.get("type", "Organization")).strip()
+    raw_list = data if isinstance(data, list) else (data.get("entities", []) if isinstance(data, dict) else [])
+    for e in raw_list:
+        if isinstance(e, str):
+            name = e.strip()
+            etype = infer_entity_type(name)
+        elif isinstance(e, dict):
+            name = str(e.get("name", "")).strip()
+            etype = str(e.get("type", "Organization")).strip()
+        else:
+            continue
         if etype not in _TYPES:
             etype = infer_entity_type(name)
         key = name.lower()

@@ -186,7 +186,10 @@ def retrieve_facts(
         fid = rel["fact_id"]
         add_node(s_row)
         add_node(o_row)
-        is_active = rel.get("valid_to") in (None, "")
+        if as_of:
+            is_active = (rel.get("valid_to") in (None, "") or str(rel.get("valid_to")) > as_of) and (rel.get("valid_from") in (None, "") or str(rel.get("valid_from")) <= as_of)
+        else:
+            is_active = rel.get("valid_to") in (None, "")
         facts[fid] = Fact(
             fact_id=fid,
             subject_id=s_row["id"] if s_row else "",

@@ -19,6 +19,45 @@ def _fact_label(f: dict | None) -> str:
 
 def _successor(client, fact: dict) -> dict | None:
     """The active fact that superseded / replaces the given one (same subject+relation)."""
+    fid = fact.get("fact_id") or ""
+    # 1. Direct explicit link in graph: a fact whose supersedes list contains this fact_id
+    if fid:
+        try:
+            rows = client.run(
+                """MATCH (s:Entity)-[r]->(o:Entity)
+                   WHERE r.valid_to IS NULL AND $fid IN r.supersedes
+                   RETURN r.fact_id AS fact_id, o.name AS object_name, r.confidence AS confidence,
+                          r.observed_at AS observed_at, r.conflict AS conflict
+                   ORDER BY r.observed_at DESC LIMIT 1""",
+                fid=fid,
+            )
+            if rows:
+                return rows[0]
+        except Exception:
+            pass
+
+    # 2. Check PostgreSQL fact_audit for explicit successor fact id
+    if fid:
+        try:
+            db = get_db()
+            audits = db.get_fact_audit(fid)
+            for a in audits:
+                if a.get("action") == "SUPERSEDED" and str(a.get("new_value", "")).startswith("fact_"):
+                    new_fid = a["new_value"]
+                    rows = client.run(
+                        """MATCH (s:Entity)-[r]->(o:Entity)
+                           WHERE r.fact_id = $new_fid AND r.valid_to IS NULL
+                           RETURN r.fact_id AS fact_id, o.name AS object_name, r.confidence AS confidence,
+                                  r.observed_at AS observed_at, r.conflict AS conflict
+                           LIMIT 1""",
+                        new_fid=new_fid,
+                    )
+                    if rows:
+                        return rows[0]
+        except Exception:
+            pass
+
+    # 3. Fallback: match by subject and relation
     rows = client.run(
         """MATCH (s:Entity {id:$sid})-[r]->(o:Entity)
            WHERE r.relation=$rel AND r.valid_to IS NULL AND r.fact_id <> $fid
@@ -27,7 +66,7 @@ def _successor(client, fact: dict) -> dict | None:
            ORDER BY r.observed_at DESC LIMIT 3""",
         sid=fact.get("subject_id") or "",
         rel=fact.get("relation") or "",
-        fid=fact.get("fact_id") or "",
+        fid=fid,
     )
     return rows[0] if rows else None
 
@@ -45,9 +84,18 @@ def _dependent_facts(client, fact: dict, limit: int = 8) -> list[dict]:
         fid=fact.get("fact_id") or "",
         sid=fact.get("subject_id") or "",
         oid=fact.get("object_id") or "",
-        limit=limit,
+        limit=limit * 2,
     )
-    return rows
+    seen = set()
+    deduped = []
+    for r in rows:
+        rfid = r.get("fact_id")
+        if rfid and rfid not in seen:
+            seen.add(rfid)
+            deduped.append(r)
+            if len(deduped) >= limit:
+                break
+    return deduped
 
 
 def _answer_status(
@@ -213,8 +261,12 @@ def _answers_for(fact_id: str) -> list[dict]:
 def answer_freshness(query_id: str) -> dict:
     """Re-check a previous answer against current memory: which of the facts it
     cited have since changed?"""
+    import time
     db = get_db()
     deps = db.get_answer_dependencies(query_id)
+    if not deps:
+        time.sleep(0.06)
+        deps = db.get_answer_dependencies(query_id)
     if not deps:
         return {"ok": False, "error": "no recorded dependencies for this answer"}
 
@@ -254,8 +306,10 @@ def answer_freshness(query_id: str) -> dict:
         )
     order = {"INVALIDATED": 0, "POTENTIALLY STALE": 1, "CURRENT": 2}
     checks.sort(key=lambda c: order.get(c["status"], 3))
+    has_invalid = any(c["status"] == "INVALIDATED" for c in checks)
     verdict = (
-        "STALE" if stale and stale == len(checks)
+        "INVALIDATED" if has_invalid
+        else "STALE" if stale and stale == len(checks)
         else "POTENTIALLY STALE" if stale
         else "CURRENT"
     )

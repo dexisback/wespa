@@ -230,14 +230,30 @@ def chat_json(messages, temperature=0.0, max_tokens=1800):
 
 
 def _parse_json(content):
+    text = (content or "").strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
     try:
-        return json.loads(content)
+        return json.loads(text)
     except (json.JSONDecodeError, TypeError):
-        start = content.find("{")
-        end = content.rfind("}")
-        if start != -1 and end > start:
-            try:
-                return json.loads(content[start : end + 1])
-            except json.JSONDecodeError:
-                pass
+        pass
+    start_obj = text.find("{")
+    end_obj = text.rfind("}")
+    start_arr = text.find("[")
+    end_arr = text.rfind("]")
+    if start_arr != -1 and end_arr > start_arr and (start_obj == -1 or start_arr < start_obj):
+        try:
+            return json.loads(text[start_arr : end_arr + 1])
+        except json.JSONDecodeError:
+            pass
+    if start_obj != -1 and end_obj > start_obj:
+        try:
+            return json.loads(text[start_obj : end_obj + 1])
+        except json.JSONDecodeError:
+            pass
     raise LLMError("malformed LLM JSON output")

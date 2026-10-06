@@ -106,9 +106,12 @@ def extract_relations(text: str, entity_names: list[str], allowed_relations: lis
     return _fallback_relations(text, allowed_relations, entity_names)
 
 
-def _parse_relations(data: dict, allowed_relations: list[str]) -> list[dict]:
+def _parse_relations(data: dict | list, allowed_relations: list[str]) -> list[dict]:
     out = []
-    for rel in data.get("relations", []):
+    raw_list = data if isinstance(data, list) else (data.get("relations", []) if isinstance(data, dict) else [])
+    for rel in raw_list:
+        if not isinstance(rel, dict):
+            continue
         relation = normalize_relation(str(rel.get("relation", "")), allowed_relations)
         subject = str(rel.get("subject", "")).strip()
         obj = str(rel.get("object", "")).strip()

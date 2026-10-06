@@ -67,6 +67,11 @@
       <label class="opt" title="Use the deterministic response path for a faster answer">
         <input id="opt-skip-llm" type="checkbox"> <span>Fast deterministic mode</span>
       </label>
+      <div class="time-travel-wrap" title="Reconstruct memory as of a historical date (leave empty for current memory)">
+        <label class="opt time-opt" for="opt-as-of"><span>As of</span></label>
+        <input id="opt-as-of" type="date" class="date-input" aria-label="Historical as-of date">
+        <button id="btn-clear-as-of" class="btn ghost small clear-date-btn hidden" title="Clear date">✕</button>
+      </div>
       <div id="latency" class="latency"></div>
     </div>
     <div class="chips" id="chips"></div>
@@ -78,9 +83,13 @@
       <div class="answer-head">
         <div class="badge" id="conf-badge">CONFIDENCE —</div>
         <div id="conf-detail" class="conf-detail"></div>
-        <button id="btn-why" class="btn ghost small">Why this answer?</button>
+        <div class="answer-actions">
+          <button id="btn-freshness" class="btn ghost small" title="Check whether facts cited in this answer have changed">Check freshness</button>
+          <button id="btn-why" class="btn ghost small">Why this answer?</button>
+        </div>
       </div>
       <p id="answer" class="answer-text"></p>
+      <div id="freshness-panel" class="freshness-panel hidden"></div>
       <div id="memory-updated" class="memory-updated hidden"></div>
       <div id="pipeline" class="pipeline hidden"></div>
       <div id="conflicts" class="conflicts hidden"></div>

@@ -103,3 +103,61 @@ def test_api_query_validation(patched):
     client = TestClient(fastapi_app)
     resp = client.post("/query", json={"question": "   ", "retrieval_mode": "hybrid"})
     assert resp.status_code == 422
+
+
+def test_relation_intent_and_as_of_ranking():
+    from app.rag.hybrid_retriever import _rank_facts
+
+    f_founded = Fact(
+        fact_id="f_found", subject_id="ent_ssi", subject_name="Safe Superintelligence",
+        relation="FOUNDED", object_id="ent_ilya", object_name="Ilya Sutskever",
+        confidence=0.9, valid_from="2025-05-01", valid_to=None, active=True,
+    )
+    f_val_old = Fact(
+        fact_id="f_vold", subject_id="ent_ssi", subject_name="Safe Superintelligence",
+        relation="VALUED_AT", object_id="ent_20b", object_name="$20 Billion",
+        confidence=0.85, valid_from="2025-05-20", valid_to="2025-06-12", active=False,
+    )
+    # Question asks about valuation as of June 1st (before June 12 supersede)
+    ranked = _rank_facts([f_founded, f_val_old], "What is Safe Superintelligence valued at?", set(), as_of="2025-06-01")
+    assert ranked[0].fact_id == "f_vold"
+    assert ranked[0].relation == "VALUED_AT"
+
+
+def test_answer_freshness_check(monkeypatch):
+    from app.impact.impact import answer_freshness
+
+    class StubDB:
+        def get_answer_dependencies(self, qid):
+            return ["f_old"]
+        def get_question(self, qid):
+            return "What is X valued at?"
+
+    class StubGraph:
+        def get_fact(self, fid):
+            return {
+                "fact_id": "f_old", "subject_id": "s1", "subject_name": "X",
+                "relation": "VALUED_AT", "object_name": "$20B", "valid_to": "2025-06-12",
+                "conflict": False,
+            }
+        @property
+        def g(self):
+            class StubClient:
+                def run(self, q, **kw):
+                    if "supersedes" in q or "VALUED_AT" in q:
+                        return [{
+                            "fact_id": "f_new", "object_name": "$32B", "confidence": 0.9,
+                            "observed_at": "2025-06-12", "conflict": False,
+                        }]
+                    return []
+            return StubClient()
+
+    monkeypatch.setattr("app.impact.impact.get_db", lambda: StubDB())
+    monkeypatch.setattr("app.impact.impact.GraphWriter", lambda: StubGraph())
+
+    fresh = answer_freshness("q_test")
+    assert fresh["ok"] is True
+    assert fresh["verdict"] in ("POTENTIALLY STALE", "STALE")
+    assert fresh["stale_count"] == 1
+    assert fresh["checks"][0]["status"] == "POTENTIALLY STALE"
+

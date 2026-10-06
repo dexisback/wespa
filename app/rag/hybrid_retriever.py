@@ -47,10 +47,15 @@ def extract_query_entities(question: str) -> list[str]:
             temperature=0.0,
             max_tokens=200,
         )
-        names = [str(n).strip() for n in data.get("entities", []) if str(n).strip()]
+        raw_list = data if isinstance(data, list) else (data.get("entities", []) if isinstance(data, dict) else [])
+        names = []
+        for n in raw_list:
+            val = str(n.get("name") if isinstance(n, dict) else n).strip()
+            if val:
+                names.append(val)
         if names:
             return names[:6]
-    except LLMError as e:
+    except Exception as e:
         log.debug("query entity extraction fell back to heuristics: %s", e)
     return _fallback_entities(question)
 
@@ -131,8 +136,8 @@ def retrieve(
         result = retrieve_facts(seeds, as_of=as_of, document_ids=document_ids)
         bundle.update(_graph_result(result))
         if bundle["facts"]:
-            bundle["facts"] = _rank_facts(bundle["facts"], question, bundle["chain_fact_ids"])
-        bundle["facts"], bundle["passages"] = _merge_rank(bundle["facts"], bundle["passages"], question, bundle["chain_fact_ids"])
+            bundle["facts"] = _rank_facts(bundle["facts"], question, bundle["chain_fact_ids"], as_of=as_of)
+        bundle["facts"], bundle["passages"] = _merge_rank(bundle["facts"], bundle["passages"], question, bundle["chain_fact_ids"], as_of=as_of)
         return bundle
 
     if mode == "vector":
@@ -145,7 +150,7 @@ def retrieve(
     result = retrieve_facts(seeds, as_of=as_of, document_ids=document_ids)
     bundle.update(_graph_result(result))
     if bundle["facts"]:
-        bundle["facts"] = _rank_facts(bundle["facts"], question, bundle["chain_fact_ids"])
+        bundle["facts"] = _rank_facts(bundle["facts"], question, bundle["chain_fact_ids"], as_of=as_of)
     return bundle
 
 
@@ -386,13 +391,16 @@ def _temporal_window(question: str) -> tuple[str, str] | None:
     return None
 
 
-def _fact_score(f: Fact, question: str, chain_ids: set[str], window) -> float:
+def _fact_score(f: Fact, question: str, chain_ids: set[str], window, as_of: str | None = None) -> float:
     score = f.confidence * 0.8
-    if f.active:
+    is_active = f.active
+    if as_of:
+        is_active = (f.valid_to is None or str(f.valid_to) > as_of) and (f.valid_from is None or str(f.valid_from) <= as_of)
+    if is_active:
         score += 1.0
     if f.fact_id in chain_ids:
         score += 0.7
-    score += 0.9 * _relation_intent(f, question)
+    score += 1.8 * _relation_intent(f, question)
     score += 0.5 * _question_overlap(f, question)
     if window and f.observed_at and window[0] <= str(f.observed_at)[:7] <= window[1]:
         score += 0.9
@@ -400,18 +408,18 @@ def _fact_score(f: Fact, question: str, chain_ids: set[str], window) -> float:
     return score
 
 
-def _rank_facts(facts: list[Fact], question: str, chain_ids: set[str]) -> list[Fact]:
+def _rank_facts(facts: list[Fact], question: str, chain_ids: set[str], as_of: str | None = None) -> list[Fact]:
     """Shared ranking: weighted evidence score (active, chain, intent, overlap, time)."""
     window = _temporal_window(question)
     return sorted(
         facts,
-        key=lambda f: -_fact_score(f, question, set(chain_ids or ()), window),
+        key=lambda f: -_fact_score(f, question, set(chain_ids or ()), window, as_of=as_of),
     )
 
 
-def _merge_rank(facts: list[Fact], passages, question: str, chain_ids: set[str] | None = None) -> tuple[list[Fact], list]:
+def _merge_rank(facts: list[Fact], passages, question: str, chain_ids: set[str] | None = None, as_of: str | None = None) -> tuple[list[Fact], list]:
     """Rank merged evidence: facts re-ranked with the question, passages by similarity."""
-    ranked = _rank_facts(sorted(facts or [], key=lambda f: f.fact_id), question, chain_ids or set())
+    ranked = _rank_facts(sorted(facts or [], key=lambda f: f.fact_id), question, chain_ids or set(), as_of=as_of)
     passages = sorted(passages or [], key=lambda p: -(p.similarity or 0.0))
     return ranked[:16], passages[:TOP_K_PASSAGES]
 
@@ -547,7 +555,7 @@ def _answer_question_impl(question: str, mode: str = "hybrid", allow_live: bool 
                 b2 = retrieve(question, "graph", as_of=as_of, entity_seeds=query_entities, document_ids=document_ids)
                 for key in ("facts", "graph_path", "matched", "chain_fact_ids", "graph_debug"):
                     b[key] = b2[key]
-                b["facts"], b["passages"] = _merge_rank(b["facts"], b["passages"], question, b["chain_fact_ids"])
+                b["facts"], b["passages"] = _merge_rank(b["facts"], b["passages"], question, b["chain_fact_ids"], as_of=as_of)
         log.info(
             "query graph debug: seeds=%s nodes=%s edges=%s facts=%s",
             query_entities,
@@ -728,20 +736,12 @@ def _answer_question_impl(question: str, mode: str = "hybrid", allow_live: bool 
         answer_dependencies=dependencies,
         as_of=as_of,
     )
-    # Query logging happens off the response path — the caller should not wait
-    # on PostgreSQL round trips after the answer is ready.
-    def _log_query_async() -> None:
-        def _write():
-            try:
-                db = get_db()
-                db.log_query(query_id, question, mode, latency_ms)
-                db.log_answer_facts(query_id, dependencies)
-            except Exception as e:
-                log.warning("query logging skipped: %s", e)
-
-        threading.Thread(target=_write, name=f"qlog-{query_id}", daemon=True).start()
-
-    _log_query_async()
+    try:
+        db = get_db()
+        db.log_query(query_id, question, mode, latency_ms)
+        db.log_answer_facts(query_id, dependencies)
+    except Exception as e:
+        log.warning("query logging skipped: %s", e)
     return result
 
 

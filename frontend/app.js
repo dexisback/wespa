@@ -85,6 +85,21 @@ function init() {
   $("btn-ingest-url").onclick = ingestUrl;
   $("opt-skip-llm").onchange = () => { if (lastQuestion) ask(lastQuestion, true); };
   $("btn-why").onclick = toggleWhy;
+  $("btn-freshness").onclick = toggleFreshness;
+
+  const dateInput = $("opt-as-of");
+  const clearDateBtn = $("btn-clear-as-of");
+  if (dateInput && clearDateBtn) {
+    dateInput.onchange = () => {
+      clearDateBtn.classList.toggle("hidden", !dateInput.value);
+      if (lastQuestion) ask(lastQuestion, true);
+    };
+    clearDateBtn.onclick = () => {
+      dateInput.value = "";
+      clearDateBtn.classList.add("hidden");
+      if (lastQuestion) ask(lastQuestion, true);
+    };
+  }
 
   // Backdrop click to dismiss modals
   document.querySelectorAll(".modal").forEach((m) => {
@@ -219,7 +234,7 @@ async function ask(question, isModeSwitch) {
         retrieval_mode: currentMode,
         allow_live: $("opt-live").checked,
         skip_llm: $("opt-skip-llm").checked,
-        as_of: null,
+        as_of: $("opt-as-of")?.value || null,
       }),
       signal: controller.signal,
     });
@@ -309,6 +324,9 @@ function renderResult(data) {
     conflictsEl.innerHTML = `⚠ The sources disagree on: ${data.conflicts.map(esc).join(" · ")}. Both versions are retained in memory; confidence reduced.`;
   } else conflictsEl.classList.add("hidden");
 
+  const fp = $("freshness-panel");
+  if (fp) fp.classList.add("hidden");
+
   const wp = $("why-panel");
   wp.classList.add("hidden");
   wp.dataset.payload = JSON.stringify(data.confidence_breakdown || {});
@@ -317,6 +335,61 @@ function renderResult(data) {
   renderSources(data);
   renderFacts(data);
   renderGraph(data);
+}
+
+/* ---------- freshness audit ---------- */
+async function toggleFreshness() {
+  const panel = $("freshness-panel");
+  if (!panel) return;
+  if (!panel.classList.contains("hidden")) {
+    panel.classList.add("hidden");
+    return;
+  }
+  if (!lastResult || !lastResult.query_id) {
+    panel.classList.remove("hidden");
+    panel.innerHTML = `<p style="color:var(--text-dim);font-size:12.5px">Ask a question first to audit its evidence freshness.</p>`;
+    return;
+  }
+  panel.classList.remove("hidden");
+  panel.innerHTML = `<div class="status" style="color:var(--accent)"><span class="spinner"></span>Auditing memory dependencies...</div>`;
+  try {
+    const res = await fetch(`${API}/impact/answer/${encodeURIComponent(lastResult.query_id)}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Freshness check failed");
+    }
+    const data = await res.json();
+    renderFreshness(data);
+  } catch (e) {
+    panel.innerHTML = `<p style="color:var(--red);font-size:12.5px">${esc(e.message)}</p>`;
+  }
+}
+
+function renderFreshness(data) {
+  const panel = $("freshness-panel");
+  const verdict = data.verdict || "CURRENT";
+  const cls = verdict === "CURRENT" ? "current" : (verdict === "POTENTIALLY STALE" || verdict === "STALE") ? "stale" : "invalidated";
+  const checks = data.checks || [];
+  const checksHtml = checks.length
+    ? checks.map((c) => `
+        <div class="freshness-item">
+          <div>
+            <div class="k"><b>${esc(c.label)}</b></div>
+            <div class="metric-sub dim">${esc(c.reason)}</div>
+          </div>
+          <div><span class="status-tag ${c.status === "CURRENT" ? "active" : c.status === "POTENTIALLY STALE" ? "superseded" : "conflict"}">${esc(c.status)}</span></div>
+        </div>`).join("")
+    : `<p style="color:var(--text-dim);font-size:12px">All cited facts are currently active in memory.</p>`;
+
+  panel.innerHTML = `
+    <div class="freshness-header">
+      <div class="why-title" style="margin-bottom:0">ANSWER FRESHNESS AUDIT</div>
+      <span class="freshness-tag ${cls}">${esc(verdict)}</span>
+    </div>
+    <div class="metric-sub" style="margin-bottom:10px">
+      ${verdict === "CURRENT" ? "All facts cited in this answer remain active beliefs in memory." : `${data.stale_count || 0} cited fact(s) have been superseded or contradicted by newer evidence.`}
+    </div>
+    <div class="freshness-list">${checksHtml}</div>`;
 }
 
 /* ---------- why this answer ---------- */
@@ -360,13 +433,16 @@ function renderSources(data) {
       const pct = Math.round(c.confidence * 100);
       bar = `<div class="cbar"><i style="width:${pct}%"></i></div>`;
     }
-    const date = c.published_at ? fmtDate(c.published_at) : (c.retrieved_at ? fmtDate(c.retrieved_at) : "");
+    const date = c.published_at ? `Published ${fmtDate(c.published_at)}` : (c.retrieved_at ? `Retrieved ${fmtDate(c.retrieved_at)}` : "");
     el.innerHTML = `
       <div class="name">${esc(c.source_name)}${c.is_new ? '<span class="new-badge">NEW</span>' : ""}</div>
       ${c.title ? `<div class="title">${esc(c.title)}</div>` : ""}
-      <div class="meta"><span>${date ? esc("Retrieved " + date) : ""}</span><span>${c.url ? "article ↗" : ""}</span></div>
+      <div class="meta"><span>${esc(date)}</span><span>${c.url ? "article ↗" : ""}</span></div>
       ${bar}`;
-    if (c.url) el.querySelector(".meta").onclick = () => window.open(c.url, "_blank");
+    if (c.url) {
+      el.style.cursor = "pointer";
+      el.onclick = () => window.open(c.url, "_blank", "noopener");
+    }
     attachTilt(el);
     wrap.appendChild(el);
   });
@@ -576,7 +652,7 @@ async function openCompare() {
   try {
     const run = (mode) => fetch(`${API}/query`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: q, retrieval_mode: mode, as_of: null }),
+      body: JSON.stringify({ question: q, retrieval_mode: mode, as_of: $("opt-as-of")?.value || null }),
     }).then((r) => r.json());
     const [v, g, h] = await Promise.all([run("vector"), run("graph"), run("hybrid")]);
     const col = (mode, d) => {
@@ -665,7 +741,7 @@ function renderImpactFact(data, factId) {
   }
   const STATUS_CLASS = { "CURRENT": "active", "POTENTIALLY STALE": "superseded", "INVALIDATED": "conflict" };
   const answers = (data.answers || []).map((a) => `
-    <div class="impact-row static">
+    <div class="impact-row" data-qid="${esc(a.query_id)}" title="Click to view full answer freshness audit">
       <div>
         <div class="k">${esc(a.question)}</div>
         <div class="metric-sub">${fmtDate(a.answered_at)} · ${esc(a.retrieval_mode)} · answered ${timeAgo(a.answered_at)}</div>
@@ -690,6 +766,40 @@ function renderImpactFact(data, factId) {
     <div class="sources-label">Related facts that depend on this</div>
     ${deps || '<p style="color:var(--text-dim)">None.</p>'}`;
   $("impact-back").onclick = () => openImpact();
+  $("impact-body").querySelectorAll(".impact-row[data-qid]").forEach((el) => {
+    el.onclick = () => inspectAnswerFreshness(el.dataset.qid);
+  });
+}
+
+async function inspectAnswerFreshness(qid) {
+  $("impact-body").innerHTML = `<div class="status" style="color:var(--accent)"><span class="spinner"></span>Auditing answer dependencies...</div>`;
+  try {
+    const res = await fetch(`${API}/impact/answer/${encodeURIComponent(qid)}`);
+    if (!res.ok) throw new Error("Freshness audit failed");
+    const data = await res.json();
+    const verdict = data.verdict || "CURRENT";
+    const checks = data.checks || [];
+    $("impact-body").innerHTML = `
+      <button class="btn ghost small" id="freshness-back">← Back to impact</button>
+      <div class="fact-changed" style="margin-top:10px">
+        <div class="why-title">ANSWER AUDIT · ${esc(qid)}</div>
+        <div class="what"><b>${esc(data.question || qid)}</b></div>
+        <div class="metric-sub" style="margin-top:6px">Verdict: <span class="status-tag ${verdict === "CURRENT" ? "active" : (verdict === "POTENTIALLY STALE" || verdict === "STALE") ? "superseded" : "conflict"}">${esc(verdict)}</span> · ${data.stale_count || 0} stale / contradicted dependency/dependencies</div>
+      </div>
+      <div class="sources-label">Dependencies cited by this answer</div>
+      ${checks.map((c) => `
+        <div class="impact-row static">
+          <div>
+            <div class="k"><b>${esc(c.label)}</b></div>
+            <div class="metric-sub dim">${esc(c.reason)}</div>
+          </div>
+          <div><span class="status-tag ${c.status === "CURRENT" ? "active" : c.status === "POTENTIALLY STALE" ? "superseded" : "conflict"}">${esc(c.status)}</span></div>
+        </div>`).join("") || '<p style="color:var(--text-dim)">No dependencies recorded.</p>'}`;
+    $("freshness-back").onclick = () => openImpact();
+  } catch (e) {
+    $("impact-body").innerHTML = `<button class="btn ghost small" id="freshness-back">← Back</button><p style="color:var(--red);margin-top:12px">${esc(e.message)}</p>`;
+    $("freshness-back").onclick = () => openImpact();
+  }
 }
 
 /* ---------- evaluation ---------- */
@@ -700,20 +810,45 @@ async function openEval() {
     let data = await (await fetch(`${API}/eval/results`)).json();
     if (data.status !== "ok") {
       $("eval-body").innerHTML = `<p style="color:var(--text-dim);font-size:13px">No measured results yet. Running the full evaluation now (all retrieval modes + grounded answers) — this takes a minute or two.</p><button id="btn-run-eval" class="btn primary" style="margin-top:12px">Run evaluation</button>`;
-      $("btn-run-eval").onclick = async () => {
-        $("eval-body").innerHTML = `<div class="status" style="color:var(--accent)"><span class="spinner"></span>Evaluating: Hit@5, Recall@5, multi-hop accuracy, temporal correctness, confidence weighting, stale-answer detection, impact analysis...</div>`;
-        try {
-          const r = await fetch(`${API}/eval/run`, { method: "POST" });
-          data = await r.json();
-          renderEval(data);
-        } catch (e) { $("eval-body").innerHTML = `<p style="color:var(--red)">Evaluation failed: ${esc(e.message)}</p>`; }
-      };
+      $("btn-run-eval").onclick = triggerEvalRun;
       return;
     }
     renderEval(data);
   } catch (e) {
     $("eval-body").innerHTML = `<p style="color:var(--red)">${esc(e.message)}</p>`;
   }
+}
+
+async function triggerEvalRun() {
+  $("eval-body").innerHTML = `<div class="status" style="color:var(--accent)"><span class="spinner"></span>Evaluating: Hit@5, Recall@5, multi-hop accuracy, temporal correctness, confidence weighting, stale-answer detection, impact analysis...</div>`;
+  try {
+    const r = await fetch(`${API}/eval/run`, { method: "POST" });
+    const res = await r.json();
+    if (res.status === "already_running") {
+      pollEvalResults();
+      return;
+    }
+    renderEval(res);
+  } catch (e) {
+    $("eval-body").innerHTML = `<p style="color:var(--red)">Evaluation failed: ${esc(e.message)}</p>`;
+  }
+}
+
+async function pollEvalResults() {
+  $("eval-body").innerHTML = `<div class="status" style="color:var(--accent)"><span class="spinner"></span>Evaluation is running in background. Waiting for results...</div>`;
+  const start = Date.now();
+  const timer = setInterval(async () => {
+    try {
+      const data = await (await fetch(`${API}/eval/results`)).json();
+      if (data.status === "ok") {
+        clearInterval(timer);
+        renderEval(data);
+      } else if (Date.now() - start > 180000) {
+        clearInterval(timer);
+        $("eval-body").innerHTML = `<p style="color:var(--red)">Evaluation timed out. Please try running again.</p>`;
+      }
+    } catch { /* continue waiting */ }
+  }, 3000);
 }
 
 function renderEval(data) {
@@ -728,11 +863,18 @@ function renderEval(data) {
     ["Impact analysis", data.impact_analysis?.result, data.impact_analysis?.detail],
     ["Temporal reconstruction", data.temporal_reconstruction?.result, data.temporal_reconstruction?.detail],
   ];
-  $("eval-body").innerHTML = rows.map(([k, v, sub]) => {
-    const isPass = v === "PASS" || v === "FAIL";
-    const cls = isPass ? (v === "PASS" ? "pass" : "fail") : "";
-    return `<div class="metric-row"><div><div class="k">${esc(k)}</div>${sub ? `<div class="metric-sub">${esc(sub)}</div>` : ""}</div><div class="v ${cls}">${esc(String(v ?? "—"))}</div></div>`;
-  }).join("");
+  $("eval-body").innerHTML = `
+    ${rows.map(([k, v, sub]) => {
+      const isPass = v === "PASS" || v === "FAIL";
+      const cls = isPass ? (v === "PASS" ? "pass" : "fail") : "";
+      return `<div class="metric-row"><div><div class="k">${esc(k)}</div>${sub ? `<div class="metric-sub">${esc(sub)}</div>` : ""}</div><div class="v ${cls}">${esc(String(v ?? "—"))}</div></div>`;
+    }).join("")}
+    <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border-soft);padding-top:12px">
+      <span class="metric-sub dim">Generated: ${data.generated_at ? fmtDate(data.generated_at) : "recently"}</span>
+      <button id="btn-re-eval" class="btn ghost small">Re-run evaluation</button>
+    </div>`;
+  const reBtn = $("btn-re-eval");
+  if (reBtn) reBtn.onclick = triggerEvalRun;
 }
 
 /* ---------- ingestion ---------- */
@@ -758,12 +900,10 @@ async function ingestUrl() {
   $("btn-ingest-url").disabled = true;
   $("fixture-list").innerHTML = `<div class="status" style="color:var(--accent)"><span class="spinner"></span>Fetching article… cleaning… extracting…</div>`;
   try {
-    const data = await runIngest({ mode: "url", url });
+    await runIngest({ mode: "url", url });
     hideOverlay($("fixture-menu"));
     $("ingest-url").value = "";
-    toast(data?.message || "Memory updated.");
   } catch (e) {
-    toast(`Unable to ingest this URL. ${esc(e?.message || e || "Ingestion failed")}`, true);
     $("fixture-list").innerHTML = `<div class="fx">failed — try another URL</div>`;
   } finally {
     $("btn-ingest-url").disabled = false;
@@ -812,9 +952,16 @@ function toast(msg, isError) {
 
 function fmtDate(iso) {
   if (!iso) return "";
+  const str = String(iso);
+  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const mon = months[parseInt(m[2], 10) - 1] || m[2];
+    return `${mon} ${parseInt(m[3], 10)}, ${m[1]}`;
+  }
   const d = new Date(iso);
-  if (isNaN(d)) return iso.slice(0, 10);
-  return d.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
+  if (isNaN(d)) return str.slice(0, 10);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 function esc(s) {
